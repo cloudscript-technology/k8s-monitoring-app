@@ -1,8 +1,0 @@
-FROM alpine:3.21.2
-RUN addgroup -S k8smonitoringappgroup && adduser -S k8smonitoringappuser -G k8smonitoringappgroup
-WORKDIR /app
-ADD k8s-monitoring-app .
-COPY database /database
-RUN chown -R k8smonitoringappuser:k8smonitoringappgroup /app && chmod +x /app/k8s-monitoring-app
-USER k8smonitoringappuser
-CMD ["/app/k8s-monitoring-app"]

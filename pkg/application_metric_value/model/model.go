@@ -42,6 +42,14 @@ type MetricValue struct {
 	ActiveNodesCount int        `json:"active_nodes_count,omitempty"`
 	NodeNames        []string   `json:"node_names,omitempty"`
 	Nodes            []NodeInfo `json:"nodes,omitempty"` // Detailed node information
+
+	// For Database and Service Connections (Redis, PostgreSQL, MongoDB, MySQL, Kong)
+	ConnectionStatus     string `json:"connection_status,omitempty"`       // "connected", "failed", "timeout"
+	ConnectionTimeMs     int64  `json:"connection_time_ms,omitempty"`      // Time to establish connection
+	ConnectionError      string `json:"connection_error,omitempty"`        // Error message if connection failed
+	ConnectionVersion    string `json:"connection_version,omitempty"`      // Database/Service version
+	ConnectionInfo       string `json:"connection_info,omitempty"`         // Additional connection information
+	ConnectionPingTimeMs int64  `json:"connection_ping_time_ms,omitempty"` // Ping/query time
 }
 
 // NodeInfo contains detailed information about a node

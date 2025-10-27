@@ -84,10 +84,33 @@ func (s *service) Add(sc *core.HTTPServerContext) error {
 	}
 
 	// Validate that the metric type exists
-	_, err = serverModel.ServerRepos.MetricType.Get(ctx, applicationMetric.TypeID)
+	metricType, err := serverModel.ServerRepos.MetricType.Get(ctx, applicationMetric.TypeID)
 	if err != nil {
 		log.Error(ctx, err).Msg("error getting metric type")
 		return sc.String(http.StatusBadRequest, "metric type not found")
+	}
+
+	// Check if a metric of this type already exists for this application
+	existingMetrics, err := serverModel.ServerRepos.ApplicationMetric.ListByApplication(ctx, applicationMetric.ApplicationID)
+	if err != nil {
+		log.Error(ctx, err).Msg("error listing application metrics")
+		return sc.String(http.StatusInternalServerError, "internal server error")
+	}
+
+	for _, existing := range existingMetrics {
+		if existing.TypeID == applicationMetric.TypeID {
+			log.Warn(ctx).
+				Str("application_id", applicationMetric.ApplicationID).
+				Str("metric_type", metricType.Name).
+				Str("existing_metric_id", existing.ID).
+				Msg("metric of this type already exists for this application")
+			return sc.JSON(http.StatusConflict, map[string]interface{}{
+				"error":              "metric already exists",
+				"message":            "A metric of type '" + metricType.Name + "' already exists for this application",
+				"existing_metric_id": existing.ID,
+				"metric_type":        metricType.Name,
+			})
+		}
 	}
 
 	if err := serverModel.ServerRepos.ApplicationMetric.Add(ctx, &applicationMetric); err != nil {
@@ -103,7 +126,7 @@ func (s *service) Update(sc *core.HTTPServerContext) error {
 	id := sc.Param("id")
 
 	// First get the existing application metric to check it exists
-	_, err := serverModel.ServerRepos.ApplicationMetric.Get(ctx, id)
+	existingMetric, err := serverModel.ServerRepos.ApplicationMetric.Get(ctx, id)
 	if err != nil {
 		log.Error(ctx, err).Msg("error getting application metric")
 		return sc.String(http.StatusNotFound, "application metric not found")
@@ -118,10 +141,40 @@ func (s *service) Update(sc *core.HTTPServerContext) error {
 
 	// Validate that the metric type exists if it's being changed
 	if applicationMetric.TypeID != "" {
-		_, err := serverModel.ServerRepos.MetricType.Get(ctx, applicationMetric.TypeID)
+		metricType, err := serverModel.ServerRepos.MetricType.Get(ctx, applicationMetric.TypeID)
 		if err != nil {
 			log.Error(ctx, err).Msg("error getting metric type")
 			return sc.String(http.StatusBadRequest, "metric type not found")
+		}
+
+		// If the type is being changed, check if another metric of the new type already exists
+		if applicationMetric.TypeID != existingMetric.TypeID {
+			existingMetrics, err := serverModel.ServerRepos.ApplicationMetric.ListByApplication(ctx, existingMetric.ApplicationID)
+			if err != nil {
+				log.Error(ctx, err).Msg("error listing application metrics")
+				return sc.String(http.StatusInternalServerError, "internal server error")
+			}
+
+			for _, existing := range existingMetrics {
+				// Skip the metric being updated
+				if existing.ID == id {
+					continue
+				}
+
+				if existing.TypeID == applicationMetric.TypeID {
+					log.Warn(ctx).
+						Str("application_id", existingMetric.ApplicationID).
+						Str("metric_type", metricType.Name).
+						Str("existing_metric_id", existing.ID).
+						Msg("metric of this type already exists for this application")
+					return sc.JSON(http.StatusConflict, map[string]interface{}{
+						"error":              "metric already exists",
+						"message":            "A metric of type '" + metricType.Name + "' already exists for this application",
+						"existing_metric_id": existing.ID,
+						"metric_type":        metricType.Name,
+					})
+				}
+			}
 		}
 	}
 

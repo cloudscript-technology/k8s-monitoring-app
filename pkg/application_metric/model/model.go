@@ -22,6 +22,24 @@ type Configuration struct {
 	// For PvcUsage
 	PvcName      string `json:"pvc_name,omitempty"`
 	PvcMountPath string `json:"pvc_mount_path,omitempty"` // Optional: mount path in the pod (auto-discovered if not provided)
+
+	// For Database and Service Connection metrics (Redis, PostgreSQL, MongoDB, MySQL, Kong)
+	ConnectionHost     string `json:"connection_host,omitempty"`     // Host/IP address
+	ConnectionPort     int    `json:"connection_port,omitempty"`     // Port number
+	ConnectionUsername string `json:"connection_username,omitempty"` // Username for authentication
+	ConnectionPassword string `json:"connection_password,omitempty"` // Password for authentication
+	ConnectionDatabase string `json:"connection_database,omitempty"` // Database name (for PostgreSQL, MySQL, MongoDB)
+	ConnectionSSL      bool   `json:"connection_ssl,omitempty"`      // Use SSL/TLS connection
+	ConnectionTimeout  int    `json:"connection_timeout,omitempty"`  // Connection timeout in seconds (default: 5)
+	
+	// For MongoDB
+	ConnectionAuthSource string `json:"connection_auth_source,omitempty"` // Auth database for MongoDB (default: admin)
+	
+	// For Redis
+	ConnectionDB int `json:"connection_db,omitempty"` // Redis database number (default: 0)
+	
+	// For Kong
+	KongAdminURL string `json:"kong_admin_url,omitempty"` // Kong Admin API URL
 }
 
 type ApplicationMetric struct {

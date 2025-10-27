@@ -655,6 +655,151 @@
                     "response": []
                 },
                 {
+                    "name": "Create RedisConnection Metric",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"application_id\": \"{{application_id}}\",\n    \"type_id\": \"{{redisconnection_type_id}}\",\n    \"configuration\": {\n        \"connection_host\": \"redis.default.svc.cluster.local\",\n        \"connection_port\": 6379,\n        \"connection_password\": \"your-redis-password\",\n        \"connection_db\": 0,\n        \"connection_ssl\": false,\n        \"connection_timeout\": 5\n    }\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/application-metrics",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "application-metrics"
+                            ]
+                        },
+                        "description": "Configure Redis connection monitoring with authentication.\n\nFields:\n- connection_host: Redis host (required)\n- connection_port: Redis port (required)\n- connection_password: Redis password (optional, omit if no auth)\n- connection_db: Database number 0-15 (default: 0)\n- connection_ssl: Use SSL/TLS (default: false)\n- connection_timeout: Timeout in seconds (default: 5)"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Create PostgreSQLConnection Metric",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"application_id\": \"{{application_id}}\",\n    \"type_id\": \"{{postgresqlconnection_type_id}}\",\n    \"configuration\": {\n        \"connection_host\": \"postgres.default.svc.cluster.local\",\n        \"connection_port\": 5432,\n        \"connection_username\": \"myuser\",\n        \"connection_password\": \"mypassword\",\n        \"connection_database\": \"mydb\",\n        \"connection_ssl\": false,\n        \"connection_timeout\": 10\n    }\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/application-metrics",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "application-metrics"
+                            ]
+                        },
+                        "description": "Configure PostgreSQL connection monitoring with authentication.\n\nFields:\n- connection_host: PostgreSQL host (required)\n- connection_port: PostgreSQL port (required)\n- connection_username: Database username (required)\n- connection_password: Database password (required)\n- connection_database: Database name (required)\n- connection_ssl: Use SSL/TLS (default: false, recommended true for production)\n- connection_timeout: Timeout in seconds (default: 5)"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Create MongoDBConnection Metric",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"application_id\": \"{{application_id}}\",\n    \"type_id\": \"{{mongodbconnection_type_id}}\",\n    \"configuration\": {\n        \"connection_host\": \"mongodb.default.svc.cluster.local\",\n        \"connection_port\": 27017,\n        \"connection_username\": \"admin\",\n        \"connection_password\": \"admin-password\",\n        \"connection_database\": \"mydb\",\n        \"connection_auth_source\": \"admin\",\n        \"connection_ssl\": false,\n        \"connection_timeout\": 5\n    }\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/application-metrics",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "application-metrics"
+                            ]
+                        },
+                        "description": "Configure MongoDB connection monitoring with authentication.\n\nFields:\n- connection_host: MongoDB host (required)\n- connection_port: MongoDB port (required)\n- connection_username: Database username (required)\n- connection_password: Database password (required)\n- connection_database: Database name (required)\n- connection_auth_source: Authentication database (default: admin)\n- connection_ssl: Use SSL/TLS (default: false)\n- connection_timeout: Timeout in seconds (default: 5)"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Create MySQLConnection Metric",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"application_id\": \"{{application_id}}\",\n    \"type_id\": \"{{mysqlconnection_type_id}}\",\n    \"configuration\": {\n        \"connection_host\": \"mysql.default.svc.cluster.local\",\n        \"connection_port\": 3306,\n        \"connection_username\": \"root\",\n        \"connection_password\": \"root-password\",\n        \"connection_database\": \"mydb\",\n        \"connection_ssl\": false,\n        \"connection_timeout\": 5\n    }\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/application-metrics",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "application-metrics"
+                            ]
+                        },
+                        "description": "Configure MySQL connection monitoring with authentication.\n\nFields:\n- connection_host: MySQL host (required)\n- connection_port: MySQL port (required)\n- connection_username: Database username (required)\n- connection_password: Database password (required)\n- connection_database: Database name (required)\n- connection_ssl: Use SSL/TLS (default: false)\n- connection_timeout: Timeout in seconds (default: 5)"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Create KongConnection Metric",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"application_id\": \"{{application_id}}\",\n    \"type_id\": \"{{kongconnection_type_id}}\",\n    \"configuration\": {\n        \"connection_host\": \"kong-admin.default.svc.cluster.local\",\n        \"connection_port\": 8001,\n        \"kong_admin_url\": \"http://kong-admin.default.svc.cluster.local:8001\",\n        \"connection_username\": \"admin\",\n        \"connection_password\": \"admin-password\",\n        \"connection_ssl\": false,\n        \"connection_timeout\": 5\n    }\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/application-metrics",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "application-metrics"
+                            ]
+                        },
+                        "description": "Configure Kong API Gateway connection and health monitoring.\n\nFields:\n- connection_host: Kong Admin host (required)\n- connection_port: Kong Admin port (default: 8001)\n- kong_admin_url: Full admin URL (optional, constructed from host:port if not provided)\n- connection_username: Basic auth username (optional)\n- connection_password: Basic auth password (optional)\n- connection_ssl: Use HTTPS (default: false)\n- connection_timeout: Timeout in seconds (default: 5)"
+                    },
+                    "response": []
+                },
+                {
                     "name": "Update Application Metric",
                     "request": {
                         "method": "PUT",

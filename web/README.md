@@ -34,17 +34,27 @@ Por aplicação, você pode ver:
    - URL do health check endpoint
    - Indicador colorido de saúde
 
-4. **Memory (Mem)**
+4. **🆕 Database Connections**
+   - Redis, PostgreSQL, MongoDB, MySQL, Kong
+   - Status da conexão (connected/failed/timeout/waiting)
+   - Endereço (host:port/database)
+   - Tempo de resposta em ms
+   - Versão do banco/serviço
+   - Mensagens de erro quando falha
+   - Ícones visuais para cada tipo de banco
+   - Cores: verde (ok), vermelho (erro), cinza (aguardando)
+
+5. **Memory (Mem)**
    - Percentual de uso
    - Barra de progresso visual
    - Cores gradientes (verde → amarelo → vermelho)
 
-5. **CPU**
+6. **CPU**
    - Percentual de uso
    - Barra de progresso visual
    - Cores gradientes (verde → amarelo → vermelho)
 
-6. **Disk (PVC)**
+7. **Disk (PVC)**
    - Percentual de uso do volume
    - Barra de progresso visual
    - Cores gradientes (verde → amarelo → vermelho)

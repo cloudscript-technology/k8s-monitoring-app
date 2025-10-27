@@ -173,6 +173,212 @@
         </div>
     </div>
 
+    <!-- Connection Metrics Section -->
+    {{ $redisMetric := index .MetricsByType "RedisConnection" }}
+    {{ $postgresMetric := index .MetricsByType "PostgreSQLConnection" }}
+    {{ $mongoMetric := index .MetricsByType "MongoDBConnection" }}
+    {{ $mysqlMetric := index .MetricsByType "MySQLConnection" }}
+    {{ $kongMetric := index .MetricsByType "KongConnection" }}
+    {{ if or $redisMetric $postgresMetric $mongoMetric $mysqlMetric $kongMetric }}
+    <div class="connections-section">
+        <div class="connections-label">database connections</div>
+        <div class="connections-grid">
+            {{ if $redisMetric }}
+            <div class="connection-box">
+                <div class="connection-header">
+                    <div class="connection-icon redis-icon">🔴</div>
+                    <div class="connection-title">Redis</div>
+                </div>
+                {{ if and $redisMetric.LatestValue }}
+                {{ $status := index $redisMetric.LatestValue.Value "connection_status" }}
+                {{ $connTime := index $redisMetric.LatestValue.Value "connection_time_ms" }}
+                {{ $version := index $redisMetric.LatestValue.Value "connection_version" }}
+                {{ $error := index $redisMetric.LatestValue.Value "connection_error" }}
+                {{ $host := index $redisMetric.Configuration "connection_host" }}
+                {{ $port := index $redisMetric.Configuration "connection_port" }}
+                <div class="connection-address">{{ $host }}:{{ printf "%.0f" $port }}</div>
+                {{ if eq $status "connected" }}
+                <div class="connection-status connection-ok" title="Connected - {{ $connTime }}ms">
+                    <span class="conn-icon">✓</span>
+                    <span class="conn-text">connected</span>
+                    <span class="conn-time">{{ printf "%.0f" $connTime }}ms</span>
+                </div>
+                {{ if $version }}<div class="connection-version">{{ $version }}</div>{{ end }}
+                {{ else }}
+                <div class="connection-status connection-error" title="{{ $error }}">
+                    <span class="conn-icon">✗</span>
+                    <span class="conn-text">{{ $status }}</span>
+                </div>
+                {{ if $error }}<div class="connection-error">{{ $error }}</div>{{ end }}
+                {{ end }}
+                {{ else }}
+                <div class="connection-address">{{ index $redisMetric.Configuration "connection_host" }}</div>
+                <div class="connection-status connection-pending">
+                    <span class="conn-icon">⏱</span>
+                    <span class="conn-text">waiting...</span>
+                </div>
+                {{ end }}
+            </div>
+            {{ end }}
+
+            {{ if $postgresMetric }}
+            <div class="connection-box">
+                <div class="connection-header">
+                    <div class="connection-icon postgres-icon">🐘</div>
+                    <div class="connection-title">PostgreSQL</div>
+                </div>
+                {{ if and $postgresMetric.LatestValue }}
+                {{ $status := index $postgresMetric.LatestValue.Value "connection_status" }}
+                {{ $connTime := index $postgresMetric.LatestValue.Value "connection_time_ms" }}
+                {{ $version := index $postgresMetric.LatestValue.Value "connection_version" }}
+                {{ $error := index $postgresMetric.LatestValue.Value "connection_error" }}
+                {{ $host := index $postgresMetric.Configuration "connection_host" }}
+                {{ $port := index $postgresMetric.Configuration "connection_port" }}
+                {{ $database := index $postgresMetric.Configuration "connection_database" }}
+                <div class="connection-address">{{ $host }}:{{ printf "%.0f" $port }}/{{ $database }}</div>
+                {{ if eq $status "connected" }}
+                <div class="connection-status connection-ok" title="Connected - {{ $connTime }}ms">
+                    <span class="conn-icon">✓</span>
+                    <span class="conn-text">connected</span>
+                    <span class="conn-time">{{ printf "%.0f" $connTime }}ms</span>
+                </div>
+                {{ if $version }}<div class="connection-version">{{ $version }}</div>{{ end }}
+                {{ else }}
+                <div class="connection-status connection-error" title="{{ $error }}">
+                    <span class="conn-icon">✗</span>
+                    <span class="conn-text">{{ $status }}</span>
+                </div>
+                {{ if $error }}<div class="connection-error">{{ $error }}</div>{{ end }}
+                {{ end }}
+                {{ else }}
+                <div class="connection-address">{{ index $postgresMetric.Configuration "connection_host" }}</div>
+                <div class="connection-status connection-pending">
+                    <span class="conn-icon">⏱</span>
+                    <span class="conn-text">waiting...</span>
+                </div>
+                {{ end }}
+            </div>
+            {{ end }}
+
+            {{ if $mongoMetric }}
+            <div class="connection-box">
+                <div class="connection-header">
+                    <div class="connection-icon mongo-icon">🍃</div>
+                    <div class="connection-title">MongoDB</div>
+                </div>
+                {{ if and $mongoMetric.LatestValue }}
+                {{ $status := index $mongoMetric.LatestValue.Value "connection_status" }}
+                {{ $connTime := index $mongoMetric.LatestValue.Value "connection_time_ms" }}
+                {{ $version := index $mongoMetric.LatestValue.Value "connection_version" }}
+                {{ $error := index $mongoMetric.LatestValue.Value "connection_error" }}
+                {{ $host := index $mongoMetric.Configuration "connection_host" }}
+                {{ $port := index $mongoMetric.Configuration "connection_port" }}
+                {{ $database := index $mongoMetric.Configuration "connection_database" }}
+                <div class="connection-address">{{ $host }}:{{ printf "%.0f" $port }}/{{ $database }}</div>
+                {{ if eq $status "connected" }}
+                <div class="connection-status connection-ok" title="Connected - {{ $connTime }}ms">
+                    <span class="conn-icon">✓</span>
+                    <span class="conn-text">connected</span>
+                    <span class="conn-time">{{ printf "%.0f" $connTime }}ms</span>
+                </div>
+                {{ if $version }}<div class="connection-version">{{ $version }}</div>{{ end }}
+                {{ else }}
+                <div class="connection-status connection-error" title="{{ $error }}">
+                    <span class="conn-icon">✗</span>
+                    <span class="conn-text">{{ $status }}</span>
+                </div>
+                {{ if $error }}<div class="connection-error">{{ $error }}</div>{{ end }}
+                {{ end }}
+                {{ else }}
+                <div class="connection-address">{{ index $mongoMetric.Configuration "connection_host" }}</div>
+                <div class="connection-status connection-pending">
+                    <span class="conn-icon">⏱</span>
+                    <span class="conn-text">waiting...</span>
+                </div>
+                {{ end }}
+            </div>
+            {{ end }}
+
+            {{ if $mysqlMetric }}
+            <div class="connection-box">
+                <div class="connection-header">
+                    <div class="connection-icon mysql-icon">🐬</div>
+                    <div class="connection-title">MySQL</div>
+                </div>
+                {{ if and $mysqlMetric.LatestValue }}
+                {{ $status := index $mysqlMetric.LatestValue.Value "connection_status" }}
+                {{ $connTime := index $mysqlMetric.LatestValue.Value "connection_time_ms" }}
+                {{ $version := index $mysqlMetric.LatestValue.Value "connection_version" }}
+                {{ $error := index $mysqlMetric.LatestValue.Value "connection_error" }}
+                {{ $host := index $mysqlMetric.Configuration "connection_host" }}
+                {{ $port := index $mysqlMetric.Configuration "connection_port" }}
+                {{ $database := index $mysqlMetric.Configuration "connection_database" }}
+                <div class="connection-address">{{ $host }}:{{ printf "%.0f" $port }}/{{ $database }}</div>
+                {{ if eq $status "connected" }}
+                <div class="connection-status connection-ok" title="Connected - {{ $connTime }}ms">
+                    <span class="conn-icon">✓</span>
+                    <span class="conn-text">connected</span>
+                    <span class="conn-time">{{ printf "%.0f" $connTime }}ms</span>
+                </div>
+                {{ if $version }}<div class="connection-version">{{ $version }}</div>{{ end }}
+                {{ else }}
+                <div class="connection-status connection-error" title="{{ $error }}">
+                    <span class="conn-icon">✗</span>
+                    <span class="conn-text">{{ $status }}</span>
+                </div>
+                {{ if $error }}<div class="connection-error">{{ $error }}</div>{{ end }}
+                {{ end }}
+                {{ else }}
+                <div class="connection-address">{{ index $mysqlMetric.Configuration "connection_host" }}</div>
+                <div class="connection-status connection-pending">
+                    <span class="conn-icon">⏱</span>
+                    <span class="conn-text">waiting...</span>
+                </div>
+                {{ end }}
+            </div>
+            {{ end }}
+
+            {{ if $kongMetric }}
+            <div class="connection-box">
+                <div class="connection-header">
+                    <div class="connection-icon kong-icon">🦍</div>
+                    <div class="connection-title">Kong</div>
+                </div>
+                {{ if and $kongMetric.LatestValue }}
+                {{ $status := index $kongMetric.LatestValue.Value "connection_status" }}
+                {{ $connTime := index $kongMetric.LatestValue.Value "connection_time_ms" }}
+                {{ $version := index $kongMetric.LatestValue.Value "connection_version" }}
+                {{ $error := index $kongMetric.LatestValue.Value "connection_error" }}
+                {{ $host := index $kongMetric.Configuration "connection_host" }}
+                {{ $port := index $kongMetric.Configuration "connection_port" }}
+                <div class="connection-address">{{ $host }}:{{ printf "%.0f" $port }}</div>
+                {{ if eq $status "connected" }}
+                <div class="connection-status connection-ok" title="Connected - {{ $connTime }}ms">
+                    <span class="conn-icon">✓</span>
+                    <span class="conn-text">connected</span>
+                    <span class="conn-time">{{ printf "%.0f" $connTime }}ms</span>
+                </div>
+                {{ if $version }}<div class="connection-version">{{ $version }}</div>{{ end }}
+                {{ else }}
+                <div class="connection-status connection-error" title="{{ $error }}">
+                    <span class="conn-icon">✗</span>
+                    <span class="conn-text">{{ $status }}</span>
+                </div>
+                {{ if $error }}<div class="connection-error">{{ $error }}</div>{{ end }}
+                {{ end }}
+                {{ else }}
+                <div class="connection-address">{{ index $kongMetric.Configuration "connection_host" }}</div>
+                <div class="connection-status connection-pending">
+                    <span class="conn-icon">⏱</span>
+                    <span class="conn-text">waiting...</span>
+                </div>
+                {{ end }}
+            </div>
+            {{ end }}
+        </div>
+    </div>
+    {{ end }}
+
     <div class="side-metrics">
         <div class="side-metric-item">
             <div class="side-metric-label">mem</div>

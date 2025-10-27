@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"time"
 
+	"k8s-monitoring-app/internal/connections"
 	"k8s-monitoring-app/internal/env"
 	"k8s-monitoring-app/internal/k8s"
 	serverModel "k8s-monitoring-app/internal/server/model"
@@ -148,6 +149,16 @@ func (m *MonitoringService) collectMetricByType(
 		metricValue, err = m.collectPvcUsage(ctx, application, &config)
 	case "PodActiveNodes":
 		metricValue, err = m.collectPodActiveNodes(ctx, application, &config)
+	case "RedisConnection":
+		metricValue = m.collectRedisConnection(ctx, &config)
+	case "PostgreSQLConnection":
+		metricValue = m.collectPostgreSQLConnection(ctx, &config)
+	case "MongoDBConnection":
+		metricValue = m.collectMongoDBConnection(ctx, &config)
+	case "MySQLConnection":
+		metricValue = m.collectMySQLConnection(ctx, &config)
+	case "KongConnection":
+		metricValue = m.collectKongConnection(ctx, &config)
 	default:
 		return fmt.Errorf("unknown metric type: %s", metricType.Name)
 	}
@@ -486,6 +497,43 @@ func (m *MonitoringService) storeMetricValue(
 	}
 
 	return nil
+}
+
+// Connection metric collection methods
+
+func (m *MonitoringService) collectRedisConnection(
+	ctx context.Context,
+	config *applicationMetricModel.Configuration,
+) applicationMetricValueModel.MetricValue {
+	return connections.TestRedisConnection(ctx, config)
+}
+
+func (m *MonitoringService) collectPostgreSQLConnection(
+	ctx context.Context,
+	config *applicationMetricModel.Configuration,
+) applicationMetricValueModel.MetricValue {
+	return connections.TestPostgreSQLConnection(ctx, config)
+}
+
+func (m *MonitoringService) collectMongoDBConnection(
+	ctx context.Context,
+	config *applicationMetricModel.Configuration,
+) applicationMetricValueModel.MetricValue {
+	return connections.TestMongoDBConnection(ctx, config)
+}
+
+func (m *MonitoringService) collectMySQLConnection(
+	ctx context.Context,
+	config *applicationMetricModel.Configuration,
+) applicationMetricValueModel.MetricValue {
+	return connections.TestMySQLConnection(ctx, config)
+}
+
+func (m *MonitoringService) collectKongConnection(
+	ctx context.Context,
+	config *applicationMetricModel.Configuration,
+) applicationMetricValueModel.MetricValue {
+	return connections.TestKongConnection(ctx, config)
 }
 
 // cleanupOldMetrics removes metric values older than the configured retention period

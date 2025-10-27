@@ -7,6 +7,7 @@ A Kubernetes-native monitoring application that runs inside your cluster and col
 - 🎯 **Easy Configuration**: Register applications and configure metrics via REST API
 - 🔄 **Automatic Collection**: Metrics collected every minute via cron jobs
 - 📊 **Multiple Metric Types**: Health checks, pod status, CPU, memory, PVC usage, and node tracking
+- 🔌 **Database Connection Monitoring**: Test and monitor Redis, PostgreSQL, MongoDB, MySQL, and Kong connections with authentication
 - 🗄️ **Historical Data**: All metrics stored in PostgreSQL for analysis
 - 🔐 **RBAC Ready**: Designed to work with Kubernetes security best practices
 - 📈 **Scalable**: Built to monitor multiple applications and namespaces
@@ -239,6 +240,89 @@ Tracks which nodes your pods are running on.
   "pod_label_selector": "app=myapp"
 }
 ```
+
+### 7. Database and Service Connection Monitoring
+
+Monitor database and service connections with authentication support.
+
+#### RedisConnection
+Tests Redis connection with authentication.
+
+**Configuration:**
+```json
+{
+  "connection_host": "redis.default.svc.cluster.local",
+  "connection_port": 6379,
+  "connection_password": "your-password",
+  "connection_db": 0,
+  "connection_timeout": 5
+}
+```
+
+#### PostgreSQLConnection
+Tests PostgreSQL connection with authentication.
+
+**Configuration:**
+```json
+{
+  "connection_host": "postgres.default.svc.cluster.local",
+  "connection_port": 5432,
+  "connection_username": "user",
+  "connection_password": "password",
+  "connection_database": "mydb",
+  "connection_ssl": false,
+  "connection_timeout": 10
+}
+```
+
+#### MongoDBConnection
+Tests MongoDB connection with authentication.
+
+**Configuration:**
+```json
+{
+  "connection_host": "mongodb.default.svc.cluster.local",
+  "connection_port": 27017,
+  "connection_username": "admin",
+  "connection_password": "password",
+  "connection_database": "mydb",
+  "connection_auth_source": "admin",
+  "connection_timeout": 5
+}
+```
+
+#### MySQLConnection
+Tests MySQL connection with authentication.
+
+**Configuration:**
+```json
+{
+  "connection_host": "mysql.default.svc.cluster.local",
+  "connection_port": 3306,
+  "connection_username": "root",
+  "connection_password": "password",
+  "connection_database": "mydb",
+  "connection_timeout": 5
+}
+```
+
+#### KongConnection
+Tests Kong API Gateway connection and health.
+
+**Configuration:**
+```json
+{
+  "connection_host": "kong-admin.default.svc.cluster.local",
+  "connection_port": 8001,
+  "kong_admin_url": "http://kong-admin.default.svc.cluster.local:8001",
+  "connection_timeout": 5
+}
+```
+
+**📖 For detailed documentation on connection metrics**, see:
+- [docs/CONNECTION_METRICS.md](docs/CONNECTION_METRICS.md) - Complete guide with examples
+- [postman/CONNECTION_METRICS_EXAMPLES.md](postman/CONNECTION_METRICS_EXAMPLES.md) - Postman examples
+- [examples/connection-metrics-test.sh](examples/connection-metrics-test.sh) - Interactive testing script
 
 ## Project Structure
 

@@ -57,6 +57,39 @@ A interface web do K8s Monitoring App foi projetada para ser intuitiva e fornece
 - Links de navegação principais
 - Estilo: Fundo branco, borda inferior cinza
 
+### 🆕 **Database Connections Section**
+
+```
+┌─────────────────────────────────────────────────────┐
+│ database connections                                │
+│                                                     │
+│ ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌────────┐│
+│ │🔴 Redis  │ │🐘Postgres│ │🍃 Mongo  │ │🐬MySQL ││
+│ │host:6379 │ │host:5432 │ │host:27017│ │host:330││
+│ │✓connected│ │✓connected│ │✗ failed  │ │⏱waitin││
+│ │   45ms   │ │   23ms   │ │timeout   │ │        ││
+│ │v7.0.11   │ │PostgreSQL│ │          │ │        ││
+│ └──────────┘ └──────────┘ └──────────┘ └────────┘│
+└─────────────────────────────────────────────────────┘
+```
+
+**Características:**
+- Borda azul (primary-color)
+- Grid responsivo (auto-fit, mínimo 220px)
+- Cada conexão mostra:
+  - Ícone do banco/serviço
+  - Nome do serviço
+  - Endereço (host:port/database)
+  - Status da conexão (connected/failed/timeout/waiting)
+  - Tempo de conexão (ms)
+  - Versão do serviço
+  - Mensagem de erro (se houver)
+- Cores:
+  - Verde: conexão OK
+  - Vermelho: conexão falhou
+  - Cinza: aguardando dados
+- Hover: borda azul + shadow
+
 ### 2. **Dashboard Header**
 
 ```

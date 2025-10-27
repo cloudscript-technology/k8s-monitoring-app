@@ -1,0 +1,30 @@
+run:
+  timeout: 5m
+
+issues:
+  exclude-rules:
+    - path: test
+      linters:
+        - gosec
+
+linters:
+  enable:
+  - asciicheck
+  - errorlint
+  - gofmt
+  - gosec
+  - goimports
+  - importas
+  - prealloc
+  - revive
+  - misspell
+  - stylecheck
+  - tparallel
+  - unconvert
+  - unparam
+  - whitespace
+
+  disable:
+  - errcheck
+  - depguard
+  - deadcode

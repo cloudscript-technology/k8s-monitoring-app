@@ -1,0 +1,1051 @@
+{
+    "info": {
+        "_postman_id": "k8s-monitoring-app-collection",
+        "name": "K8s Monitoring App",
+        "description": "Collection for testing K8s Monitoring App API endpoints",
+        "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+    },
+    "item": [
+        {
+            "name": "Health Check",
+            "item": [
+                {
+                    "name": "Health Check",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{base_url}}/health",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "health"
+                            ]
+                        },
+                        "description": "Check application health status"
+                    },
+                    "response": []
+                }
+            ]
+        },
+        {
+            "name": "Projects",
+            "item": [
+                {
+                    "name": "List Projects",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/projects",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "projects"
+                            ]
+                        },
+                        "description": "List all projects"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Get Project by ID",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/projects/{{project_id}}",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "projects",
+                                "{{project_id}}"
+                            ]
+                        },
+                        "description": "Get a specific project by ID"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Create Project",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "if (pm.response.code === 201) {",
+                                    "    var jsonData = pm.response.json();",
+                                    "    pm.environment.set(\"project_id\", jsonData.id);",
+                                    "    console.log(\"Project ID saved: \" + jsonData.id);",
+                                    "}"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"name\": \"Production\",\n    \"description\": \"Production environment applications\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/projects",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "projects"
+                            ]
+                        },
+                        "description": "Create a new project"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Update Project",
+                    "request": {
+                        "method": "PUT",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"name\": \"Production Updated\",\n    \"description\": \"Updated production environment\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/projects/{{project_id}}",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "projects",
+                                "{{project_id}}"
+                            ]
+                        },
+                        "description": "Update an existing project"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Delete Project",
+                    "request": {
+                        "method": "DELETE",
+                        "header": [],
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/projects/{{project_id}}",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "projects",
+                                "{{project_id}}"
+                            ]
+                        },
+                        "description": "Delete a project"
+                    },
+                    "response": []
+                }
+            ]
+        },
+        {
+            "name": "Applications",
+            "item": [
+                {
+                    "name": "List All Applications",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/applications",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "applications"
+                            ]
+                        },
+                        "description": "List all applications"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "List Applications by Project",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/projects/{{project_id}}/applications",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "projects",
+                                "{{project_id}}",
+                                "applications"
+                            ]
+                        },
+                        "description": "List applications for a specific project"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Get Application by ID",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/applications/{{application_id}}",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "applications",
+                                "{{application_id}}"
+                            ]
+                        },
+                        "description": "Get a specific application by ID"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Create Application",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "if (pm.response.code === 201) {",
+                                    "    var jsonData = pm.response.json();",
+                                    "    pm.environment.set(\"application_id\", jsonData.id);",
+                                    "    console.log(\"Application ID saved: \" + jsonData.id);",
+                                    "}"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"project_id\": \"{{project_id}}\",\n    \"name\": \"web-app\",\n    \"description\": \"Main web application\",\n    \"namespace\": \"production\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/applications",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "applications"
+                            ]
+                        },
+                        "description": "Create a new application"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Update Application",
+                    "request": {
+                        "method": "PUT",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"name\": \"web-app-updated\",\n    \"description\": \"Updated web application\",\n    \"namespace\": \"production\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/applications/{{application_id}}",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "applications",
+                                "{{application_id}}"
+                            ]
+                        },
+                        "description": "Update an existing application"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Delete Application",
+                    "request": {
+                        "method": "DELETE",
+                        "header": [],
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/applications/{{application_id}}",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "applications",
+                                "{{application_id}}"
+                            ]
+                        },
+                        "description": "Delete an application"
+                    },
+                    "response": []
+                }
+            ]
+        },
+        {
+            "name": "Metric Types",
+            "item": [
+                {
+                    "name": "List Metric Types",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "if (pm.response.code === 200) {",
+                                    "    var jsonData = pm.response.json();",
+                                    "    ",
+                                    "    // Save metric type IDs to environment",
+                                    "    jsonData.forEach(function(metricType) {",
+                                    "        var envVarName = metricType.name.toLowerCase().replace(/([a-z])([A-Z])/g, '$1_$2').toLowerCase() + '_type_id';",
+                                    "        pm.environment.set(envVarName, metricType.id);",
+                                    "        console.log(envVarName + ': ' + metricType.id);",
+                                    "    });",
+                                    "}"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/metric-types",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "metric-types"
+                            ]
+                        },
+                        "description": "List all available metric types"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Get Metric Type by ID",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/metric-types/{{healthcheck_type_id}}",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "metric-types",
+                                "{{healthcheck_type_id}}"
+                            ]
+                        },
+                        "description": "Get a specific metric type by ID"
+                    },
+                    "response": []
+                }
+            ]
+        },
+        {
+            "name": "Application Metrics",
+            "item": [
+                {
+                    "name": "List All Application Metrics",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/application-metrics",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "application-metrics"
+                            ]
+                        },
+                        "description": "List all application metrics"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "List Metrics by Application",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/applications/{{application_id}}/metrics",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "applications",
+                                "{{application_id}}",
+                                "metrics"
+                            ]
+                        },
+                        "description": "List metrics for a specific application"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Get Application Metric by ID",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/application-metrics/{{application_metric_id}}",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "application-metrics",
+                                "{{application_metric_id}}"
+                            ]
+                        },
+                        "description": "Get a specific application metric by ID"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Create HealthCheck Metric",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "if (pm.response.code === 201) {",
+                                    "    var jsonData = pm.response.json();",
+                                    "    pm.environment.set(\"application_metric_id\", jsonData.id);",
+                                    "    console.log(\"Application Metric ID saved: \" + jsonData.id);",
+                                    "}"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"application_id\": \"{{application_id}}\",\n    \"type_id\": \"{{healthcheck_type_id}}\",\n    \"configuration\": {\n        \"health_check_url\": \"http://web-app.production.svc.cluster.local:8080/health\",\n        \"method\": \"GET\",\n        \"expected_status\": 200,\n        \"timeout_seconds\": 10\n    }\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/application-metrics",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "application-metrics"
+                            ]
+                        },
+                        "description": "Configure health check monitoring for an application"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Create PodStatus Metric",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"application_id\": \"{{application_id}}\",\n    \"type_id\": \"{{podstatus_type_id}}\",\n    \"configuration\": {\n        \"pod_label_selector\": \"app=web-app\",\n        \"container_name\": \"web\"\n    }\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/application-metrics",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "application-metrics"
+                            ]
+                        },
+                        "description": "Configure pod status monitoring"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Create PodMemoryUsage Metric",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"application_id\": \"{{application_id}}\",\n    \"type_id\": \"{{podmemoryusage_type_id}}\",\n    \"configuration\": {\n        \"pod_label_selector\": \"app=web-app\",\n        \"container_name\": \"web\"\n    }\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/application-metrics",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "application-metrics"
+                            ]
+                        },
+                        "description": "Configure pod memory usage monitoring"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Create PodCpuUsage Metric",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"application_id\": \"{{application_id}}\",\n    \"type_id\": \"{{podcpuusage_type_id}}\",\n    \"configuration\": {\n        \"pod_label_selector\": \"app=web-app\",\n        \"container_name\": \"web\"\n    }\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/application-metrics",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "application-metrics"
+                            ]
+                        },
+                        "description": "Configure pod CPU usage monitoring"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Create PvcUsage Metric",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"application_id\": \"{{application_id}}\",\n    \"type_id\": \"{{pvcusage_type_id}}\",\n    \"configuration\": {\n        \"pvc_name\": \"web-app-data\"\n    }\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/application-metrics",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "application-metrics"
+                            ]
+                        },
+                        "description": "Configure PVC usage monitoring"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Create PodActiveNodes Metric",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"application_id\": \"{{application_id}}\",\n    \"type_id\": \"{{podactivenodes_type_id}}\",\n    \"configuration\": {\n        \"pod_label_selector\": \"app=web-app\"\n    }\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/application-metrics",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "application-metrics"
+                            ]
+                        },
+                        "description": "Configure pod active nodes monitoring"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Update Application Metric",
+                    "request": {
+                        "method": "PUT",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"configuration\": {\n        \"health_check_url\": \"http://web-app.production.svc.cluster.local:8080/healthz\",\n        \"method\": \"GET\",\n        \"expected_status\": 200,\n        \"timeout_seconds\": 5\n    }\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/application-metrics/{{application_metric_id}}",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "application-metrics",
+                                "{{application_metric_id}}"
+                            ]
+                        },
+                        "description": "Update an application metric configuration"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Delete Application Metric",
+                    "request": {
+                        "method": "DELETE",
+                        "header": [],
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/application-metrics/{{application_metric_id}}",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "application-metrics",
+                                "{{application_metric_id}}"
+                            ]
+                        },
+                        "description": "Delete an application metric"
+                    },
+                    "response": []
+                }
+            ]
+        },
+        {
+            "name": "Metric Values (Collected Data)",
+            "item": [
+                {
+                    "name": "Get Latest Metrics for Application",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/applications/{{application_id}}/latest-metrics",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "applications",
+                                "{{application_id}}",
+                                "latest-metrics"
+                            ]
+                        },
+                        "description": "Get the latest collected value for each metric configured for the application. This is the main endpoint for dashboards."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "List Metric Values (History)",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/application-metrics/{{application_metric_id}}/values?limit=100",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "application-metrics",
+                                "{{application_metric_id}}",
+                                "values"
+                            ],
+                            "query": [
+                                {
+                                    "key": "limit",
+                                    "value": "100",
+                                    "description": "Number of records to return (default: 100, max: 1000)"
+                                }
+                            ]
+                        },
+                        "description": "Get historical values for a specific metric. Use limit parameter to control how many records to return."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Get Metric Value by ID",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/metric-values/{{metric_value_id}}",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "metric-values",
+                                "{{metric_value_id}}"
+                            ]
+                        },
+                        "description": "Get a specific metric value by its ID"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "List Values - Last 10",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/application-metrics/{{application_metric_id}}/values?limit=10",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "application-metrics",
+                                "{{application_metric_id}}",
+                                "values"
+                            ],
+                            "query": [
+                                {
+                                    "key": "limit",
+                                    "value": "10"
+                                }
+                            ]
+                        },
+                        "description": "Get last 10 collected values for quick checking"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "List Values - Last 1000 (Max)",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/application-metrics/{{application_metric_id}}/values?limit=1000",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "application-metrics",
+                                "{{application_metric_id}}",
+                                "values"
+                            ],
+                            "query": [
+                                {
+                                    "key": "limit",
+                                    "value": "1000",
+                                    "description": "Maximum limit"
+                                }
+                            ]
+                        },
+                        "description": "Get maximum allowed records (1000) for trend analysis"
+                    },
+                    "response": []
+                }
+            ],
+            "description": "Read-only endpoints to view collected metric data. Metrics are collected automatically by the cron job every minute."
+        },
+        {
+            "name": "Complete Workflow",
+            "item": [
+                {
+                    "name": "1. Create Project",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "if (pm.response.code === 201) {",
+                                    "    var jsonData = pm.response.json();",
+                                    "    pm.environment.set(\"workflow_project_id\", jsonData.id);",
+                                    "}"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"name\": \"Workflow Test Project\",\n    \"description\": \"Testing complete workflow\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/projects",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "projects"
+                            ]
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "2. Create Application",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "if (pm.response.code === 201) {",
+                                    "    var jsonData = pm.response.json();",
+                                    "    pm.environment.set(\"workflow_application_id\", jsonData.id);",
+                                    "}"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"project_id\": \"{{workflow_project_id}}\",\n    \"name\": \"test-app\",\n    \"description\": \"Test application\",\n    \"namespace\": \"default\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/applications",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "applications"
+                            ]
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "3. Get Metric Types",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "if (pm.response.code === 200) {",
+                                    "    var jsonData = pm.response.json();",
+                                    "    jsonData.forEach(function(mt) {",
+                                    "        if (mt.name === 'HealthCheck') {",
+                                    "            pm.environment.set('workflow_healthcheck_id', mt.id);",
+                                    "        }",
+                                    "    });",
+                                    "}"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/metric-types",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "metric-types"
+                            ]
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "4. Configure Health Check",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"application_id\": \"{{workflow_application_id}}\",\n    \"type_id\": \"{{workflow_healthcheck_id}}\",\n    \"configuration\": {\n        \"health_check_url\": \"http://test-app.default.svc.cluster.local:8080/health\",\n        \"method\": \"GET\",\n        \"expected_status\": 200,\n        \"timeout_seconds\": 10\n    }\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/application-metrics",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "application-metrics"
+                            ]
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "5. List Application Metrics",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/applications/{{workflow_application_id}}/metrics",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "applications",
+                                "{{workflow_application_id}}",
+                                "metrics"
+                            ]
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "6. Get Latest Collected Metrics",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/applications/{{workflow_application_id}}/latest-metrics",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "applications",
+                                "{{workflow_application_id}}",
+                                "latest-metrics"
+                            ]
+                        },
+                        "description": "NOTE: Wait 1-2 minutes after step 4 for the cron job to collect metrics before running this request"
+                    },
+                    "response": []
+                }
+            ],
+            "description": "Run this folder to test the complete workflow from project creation to viewing collected metrics. NOTE: Wait 1-2 minutes between step 4 and step 6 for metrics to be collected."
+        }
+    ],
+    "variable": [
+        {
+            "key": "base_url",
+            "value": "http://localhost:8080",
+            "type": "string"
+        }
+    ]
+}

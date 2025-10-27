@@ -1,0 +1,60 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "chart.fullname" . }}
+  labels:
+    {{- include "chart.labels" . | nindent 4 }}
+spec:
+  {{- if not .Values.autoscaling.enabled }}
+  replicas: {{ .Values.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "chart.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "chart.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "chart.serviceAccountName" . }}
+      containers:
+        - name: {{ .Values.application.api.name }}
+          image: "{{ .Values.application.api.image.repository }}:{{ .Values.application.api.image.tag }}"
+          imagePullPolicy: {{ .Values.application.api.imagePullPolicy }}
+          env:
+            {{- with .Values.application.api.env }}
+              {{- toYaml . | nindent 12 }}
+            {{- end }}
+          {{- if .Values.secret.enabled }}
+          envFrom:
+            - secretRef:
+                name: {{ .Values.secret.secretName }}
+          {{- end }}
+          ports:
+            {{- with .Values.application.api.ports }}
+              {{- toYaml . | nindent 12 }}
+            {{- end }}
+          resources:
+            {{- toYaml .Values.application.api.resources | nindent 12 }}
+          {{- if .Values.application.api.probes.enabled }}
+          livenessProbe:
+            {{- toYaml .Values.application.api.probes.livenessProbe | nindent 12 }}
+          readinessProbe:
+            {{- toYaml .Values.application.api.probes.readinessProbe | nindent 12 }}
+          {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

@@ -1,0 +1,23 @@
+services:
+  postgres:
+    image: postgres:15.3
+    container_name: k8s-monitoring-app-postgres
+    ports:
+      - "5434:5432"
+    environment:
+      POSTGRES_DB: api
+      POSTGRES_USER: api
+      POSTGRES_PASSWORD: api
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    volumes:
+      - ./database/postgres-init-user-db.sh:/docker-entrypoint-initdb.d/init-user-db.sh
+      - ./database:/database
+    command: postgres -c shared_preload_libraries=pg_stat_statements -c pg_stat_statements.track=all -c max_connections=200
+
+networks:
+  default:
+    name: k8s-monitoring-app-network

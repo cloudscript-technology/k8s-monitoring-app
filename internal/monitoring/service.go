@@ -5,7 +5,9 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"time"
 
+	"k8s-monitoring-app/internal/env"
 	"k8s-monitoring-app/internal/k8s"
 	serverModel "k8s-monitoring-app/internal/server/model"
 	applicationModel "k8s-monitoring-app/pkg/application/model"
@@ -40,14 +42,36 @@ func NewMonitoringService(db *sql.DB) (*MonitoringService, error) {
 }
 
 func (m *MonitoringService) Start() error {
-	// Schedule the monitoring job to run every minute
-	_, err := m.cron.AddFunc("@every 1m", m.collectMetrics)
+	// Get collection interval from environment (default: 60 seconds)
+	collectionInterval := env.METRICS_COLLECTION_INTERVAL
+	if collectionInterval <= 0 {
+		collectionInterval = 60
+	}
+
+	// Schedule the monitoring job using the configured interval
+	cronSpec := fmt.Sprintf("@every %ds", collectionInterval)
+	_, err := m.cron.AddFunc(cronSpec, m.collectMetrics)
 	if err != nil {
 		return fmt.Errorf("failed to add cron job: %w", err)
 	}
 
+	// Schedule the cleanup job to run based on configuration
+	cleanupInterval := env.METRICS_CLEANUP_INTERVAL
+	if cleanupInterval == "" {
+		cleanupInterval = "0 2 * * *" // Default: daily at 2 AM
+	}
+
+	_, err = m.cron.AddFunc(cleanupInterval, m.cleanupOldMetrics)
+	if err != nil {
+		return fmt.Errorf("failed to add cleanup cron job: %w", err)
+	}
+
 	m.cron.Start()
-	log.Info(context.Background()).Msg("Monitoring service started")
+	log.Info(context.Background()).
+		Int("collection_interval_seconds", collectionInterval).
+		Int("retention_days", env.METRICS_RETENTION_DAYS).
+		Str("cleanup_interval", cleanupInterval).
+		Msg("Monitoring service started")
 
 	return nil
 }
@@ -168,36 +192,93 @@ func (m *MonitoringService) collectPodStatus(
 			PodPhase:     "NotFound",
 			PodReady:     false,
 			RestartCount: 0,
+			TotalPods:    0,
+			ReadyPods:    0,
+			Pods:         []applicationMetricValueModel.PodInfo{},
 		}, nil
 	}
 
-	// Use the first pod or aggregate if multiple
-	pod := pods.Items[0]
+	// Aggregate status from all pods
+	totalPods := len(pods.Items)
+	runningPods := 0
+	readyPods := 0
+	totalRestarts := int32(0)
+	hasFailedPods := false
+	hasPendingPods := false
 
-	// Find the specific container if specified
-	var restartCount int32
-	var containerReady bool
+	// Collect individual pod information
+	podInfos := make([]applicationMetricValueModel.PodInfo, 0, len(pods.Items))
 
-	if config.ContainerName != "" {
-		for _, containerStatus := range pod.Status.ContainerStatuses {
-			if containerStatus.Name == config.ContainerName {
-				restartCount = containerStatus.RestartCount
-				containerReady = containerStatus.Ready
-				break
+	for _, pod := range pods.Items {
+		if pod.Status.Phase == corev1.PodRunning {
+			runningPods++
+		} else if pod.Status.Phase == corev1.PodFailed {
+			hasFailedPods = true
+		} else if pod.Status.Phase == corev1.PodPending {
+			hasPendingPods = true
+		}
+
+		// Check container status for this specific pod
+		podReady := false
+		podRestartCount := int32(0)
+
+		if config.ContainerName != "" {
+			for _, containerStatus := range pod.Status.ContainerStatuses {
+				if containerStatus.Name == config.ContainerName {
+					podReady = containerStatus.Ready
+					podRestartCount = containerStatus.RestartCount
+					if containerStatus.Ready {
+						readyPods++
+					}
+					totalRestarts += containerStatus.RestartCount
+					break
+				}
+			}
+		} else {
+			// Use first container
+			if len(pod.Status.ContainerStatuses) > 0 {
+				podReady = pod.Status.ContainerStatuses[0].Ready
+				podRestartCount = pod.Status.ContainerStatuses[0].RestartCount
+				if pod.Status.ContainerStatuses[0].Ready {
+					readyPods++
+				}
+				totalRestarts += pod.Status.ContainerStatuses[0].RestartCount
 			}
 		}
-	} else {
-		// Use first container
-		if len(pod.Status.ContainerStatuses) > 0 {
-			restartCount = pod.Status.ContainerStatuses[0].RestartCount
-			containerReady = pod.Status.ContainerStatuses[0].Ready
-		}
+
+		// Add individual pod info
+		podInfos = append(podInfos, applicationMetricValueModel.PodInfo{
+			Name:         pod.Name,
+			Phase:        string(pod.Status.Phase),
+			Ready:        podReady,
+			RestartCount: podRestartCount,
+			NodeName:     pod.Spec.NodeName,
+			IP:           pod.Status.PodIP,
+		})
+	}
+
+	// Determine overall phase
+	overallPhase := "Running"
+	overallReady := true
+
+	if hasFailedPods {
+		overallPhase = "Degraded" // Some pods failed
+		overallReady = false
+	} else if readyPods < totalPods {
+		overallPhase = "Running"
+		overallReady = false // Not all pods ready
+	} else if hasPendingPods {
+		overallPhase = "Pending"
+		overallReady = false
 	}
 
 	return applicationMetricValueModel.MetricValue{
-		PodPhase:     string(pod.Status.Phase),
-		PodReady:     containerReady,
-		RestartCount: restartCount,
+		PodPhase:     overallPhase,
+		PodReady:     overallReady,
+		RestartCount: totalRestarts,
+		TotalPods:    totalPods,
+		ReadyPods:    readyPods,
+		Pods:         podInfos,
 	}, nil
 }
 
@@ -318,22 +399,23 @@ func (m *MonitoringService) collectPvcUsage(
 	application *applicationModel.Application,
 	config *applicationMetricModel.Configuration,
 ) (applicationMetricValueModel.MetricValue, error) {
-	pvc, err := m.k8sClient.GetPVCUsage(ctx, application.Namespace, config.PvcName)
+	// Get PVC usage with disk info by executing df in the pod
+	usageInfo, err := m.k8sClient.GetPVCUsageWithDiskInfo(
+		ctx,
+		application.Namespace,
+		config.PvcName,
+		config.PodLabelSelector,
+		config.ContainerName,
+		config.PvcMountPath,
+	)
 	if err != nil {
-		return applicationMetricValueModel.MetricValue{}, err
+		return applicationMetricValueModel.MetricValue{}, fmt.Errorf("failed to get PVC usage: %w", err)
 	}
 
-	capacity := pvc.Status.Capacity[corev1.ResourceStorage]
-	capacityBytes := capacity.Value()
-
-	// Note: Kubernetes doesn't directly provide used space for PVCs
-	// This would typically require additional metrics from the storage system
-	// For now, we'll just store the capacity
-
 	return applicationMetricValueModel.MetricValue{
-		PvcCapacityBytes: capacityBytes,
-		PvcUsedBytes:     0, // Would need storage system integration
-		PvcPercent:       0,
+		PvcCapacityBytes: usageInfo.CapacityBytes,
+		PvcUsedBytes:     usageInfo.UsedBytes,
+		PvcPercent:       usageInfo.Percent,
 	}, nil
 }
 
@@ -342,14 +424,45 @@ func (m *MonitoringService) collectPodActiveNodes(
 	application *applicationModel.Application,
 	config *applicationMetricModel.Configuration,
 ) (applicationMetricValueModel.MetricValue, error) {
-	nodes, err := m.k8sClient.GetNodesForPods(ctx, application.Namespace, config.PodLabelSelector)
+	// Get detailed node information
+	nodesInfo, err := m.k8sClient.GetNodesInfoForPods(ctx, application.Namespace, config.PodLabelSelector)
 	if err != nil {
 		return applicationMetricValueModel.MetricValue{}, err
 	}
 
+	// Extract node names for backward compatibility
+	nodeNames := make([]string, 0, len(nodesInfo))
+
+	// Convert k8s.NodeInfo to model.NodeInfo
+	nodes := make([]applicationMetricValueModel.NodeInfo, 0, len(nodesInfo))
+	for _, nodeInfo := range nodesInfo {
+		nodeNames = append(nodeNames, nodeInfo.Name)
+
+		// Convert conditions
+		conditions := make([]applicationMetricValueModel.NodeCondition, 0, len(nodeInfo.Conditions))
+		for _, cond := range nodeInfo.Conditions {
+			conditions = append(conditions, applicationMetricValueModel.NodeCondition{
+				Type:    cond.Type,
+				Status:  cond.Status,
+				Reason:  cond.Reason,
+				Message: cond.Message,
+			})
+		}
+
+		nodes = append(nodes, applicationMetricValueModel.NodeInfo{
+			Name:       nodeInfo.Name,
+			Ready:      nodeInfo.Ready,
+			Status:     nodeInfo.Status,
+			Conditions: conditions,
+			Labels:     nodeInfo.Labels,
+			PodCount:   nodeInfo.PodCount,
+		})
+	}
+
 	return applicationMetricValueModel.MetricValue{
 		ActiveNodesCount: len(nodes),
-		NodeNames:        nodes,
+		NodeNames:        nodeNames,
+		Nodes:            nodes,
 	}, nil
 }
 
@@ -373,4 +486,34 @@ func (m *MonitoringService) storeMetricValue(
 	}
 
 	return nil
+}
+
+// cleanupOldMetrics removes metric values older than the configured retention period
+func (m *MonitoringService) cleanupOldMetrics() {
+	ctx := context.Background()
+	retentionDays := env.METRICS_RETENTION_DAYS
+	if retentionDays <= 0 {
+		retentionDays = 30 // Default to 30 days if not configured
+	}
+
+	cutoffDate := time.Now().AddDate(0, 0, -retentionDays)
+
+	log.Info(ctx).
+		Int("retention_days", retentionDays).
+		Time("cutoff_date", cutoffDate).
+		Msg("Starting metrics cleanup")
+
+	// Delete old metric values
+	query := `DELETE FROM application_metric_values WHERE created_at < $1`
+	result, err := m.db.ExecContext(ctx, query, cutoffDate)
+	if err != nil {
+		log.Error(ctx, err).Msg("Failed to cleanup old metrics")
+		return
+	}
+
+	rowsAffected, _ := result.RowsAffected()
+	log.Info(ctx).
+		Int64("deleted_records", rowsAffected).
+		Int("retention_days", retentionDays).
+		Msg("Metrics cleanup completed")
 }

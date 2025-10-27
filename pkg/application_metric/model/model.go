@@ -20,7 +20,8 @@ type Configuration struct {
 	ContainerName    string `json:"container_name,omitempty"`     // Optional: specific container to monitor
 
 	// For PvcUsage
-	PvcName string `json:"pvc_name,omitempty"`
+	PvcName      string `json:"pvc_name,omitempty"`
+	PvcMountPath string `json:"pvc_mount_path,omitempty"` // Optional: mount path in the pod (auto-discovered if not provided)
 }
 
 type ApplicationMetric struct {

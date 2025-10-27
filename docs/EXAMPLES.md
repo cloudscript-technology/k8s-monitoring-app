@@ -232,7 +232,9 @@ curl -X POST $API_URL/application-metrics \
     \"application_id\": \"$DB_APP_ID\",
     \"type_id\": \"$PVC_ID\",
     \"configuration\": {
-      \"pvc_name\": \"postgres-data-pvc\"
+      \"pvc_name\": \"postgres-data-pvc\",
+      \"pod_label_selector\": \"app=postgres\",
+      \"container_name\": \"postgres\"
     }
   }"
 

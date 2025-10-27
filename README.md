@@ -10,6 +10,8 @@ A Kubernetes-native monitoring application that runs inside your cluster and col
 - 🗄️ **Historical Data**: All metrics stored in PostgreSQL for analysis
 - 🔐 **RBAC Ready**: Designed to work with Kubernetes security best practices
 - 📈 **Scalable**: Built to monitor multiple applications and namespaces
+- 🖥️ **Modern Web UI**: Real-time dashboard with HTMX and auto-refresh every 10s
+- 🎨 **Beautiful Interface**: Clean design with visual indicators and progress bars
 
 ## Architecture
 
@@ -54,6 +56,26 @@ A Kubernetes-native monitoring application that runs inside your cluster and col
 - PostgreSQL database
 - metrics-server installed in your cluster
 
+### Access the Web UI
+
+Once the application is running:
+
+```bash
+# Port forward to access the UI locally
+kubectl port-forward service/k8s-monitoring-app 8080:8080
+
+# Access the dashboard
+open http://localhost:8080
+```
+
+**Features:**
+- ✨ Real-time metrics visualization
+- 🔄 Auto-refresh every 10 seconds
+- 📊 Visual indicators for health, CPU, memory, and disk
+- 🎯 Organized by projects and applications
+
+For more details about the Web UI, see [web/README.md](web/README.md).
+
 ### 1. Setup RBAC
 
 ```bash
@@ -72,6 +94,9 @@ rules:
   - apiGroups: [""]
     resources: ["pods", "persistentvolumeclaims", "nodes"]
     verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["pods/exec"]
+    verbs: ["create"]
   - apiGroups: ["metrics.k8s.io"]
     resources: ["pods"]
     verbs: ["get", "list"]
@@ -190,14 +215,20 @@ Tracks CPU usage in millicores and percentage of limits.
 ```
 
 ### 5. PvcUsage
-Monitors Persistent Volume Claim capacity and usage.
+Monitors Persistent Volume Claim capacity and usage by executing `df` inside pods.
 
 **Configuration:**
 ```json
 {
-  "pvc_name": "my-pvc"
+  "pvc_name": "my-pvc",
+  "pod_label_selector": "app=myapp",
+  "container_name": "main",     // Optional
+  "pvc_mount_path": "/data"     // Optional: auto-discovered
 }
 ```
+
+**Required:** `pvc_name`, `pod_label_selector`  
+**Auto-discovery:** The system automatically finds the mount path by inspecting pod volumes.
 
 ### 6. PodActiveNodes
 Tracks which nodes your pods are running on.

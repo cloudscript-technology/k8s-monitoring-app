@@ -2,27 +2,89 @@ package env
 
 import (
 	"os"
+	"path/filepath"
+	"strconv"
 
 	"github.com/joho/godotenv"
 )
 
 var (
-	ENV                  string
-	DB_CONNECTION_STRING string
-	ADMIN_TOKEN          string
+	ENV                         string
+	DB_CONNECTION_STRING        string
+	ADMIN_TOKEN                 string
+	METRICS_RETENTION_DAYS      int
+	METRICS_CLEANUP_INTERVAL    string
+	METRICS_COLLECTION_INTERVAL int // Collection interval in seconds (default: 60)
 )
 
 func GetEnv() error {
 	if os.Getenv("ENV") != "staging" && os.Getenv("ENV") != "production" {
-		err := godotenv.Load()
-		if err != nil {
-			return err
+		// Try to load .env from multiple locations
+		possiblePaths := []string{
+			".env",                       // Current directory
+			"cmd/.env",                   // cmd subdirectory (when running from root)
+			"../.env",                    // Parent directory (when running from cmd)
+			filepath.Join("cmd", ".env"), // Explicit cmd path
+		}
+
+		var lastErr error
+		loaded := false
+
+		for _, path := range possiblePaths {
+			err := godotenv.Load(path)
+			if err == nil {
+				loaded = true
+				break
+			}
+			lastErr = err
+		}
+
+		// If .env not found in any location, it's not critical
+		// Environment variables can be set externally
+		if !loaded && lastErr != nil {
+			// Log but don't fail - env vars might be set externally
+			// return lastErr
 		}
 	}
 
 	ENV = os.Getenv("ENV")
 	DB_CONNECTION_STRING = os.Getenv("DB_CONNECTION_STRING")
 	ADMIN_TOKEN = os.Getenv("ADMIN_TOKEN")
+
+	// Metrics retention configuration (default: 30 days)
+	retentionDays := os.Getenv("METRICS_RETENTION_DAYS")
+	if retentionDays == "" {
+		METRICS_RETENTION_DAYS = 30
+	} else {
+		if days, err := strconv.Atoi(retentionDays); err == nil {
+			METRICS_RETENTION_DAYS = days
+		} else {
+			METRICS_RETENTION_DAYS = 30
+		}
+	}
+
+	// Metrics cleanup interval (default: daily at 2 AM)
+	METRICS_CLEANUP_INTERVAL = os.Getenv("METRICS_CLEANUP_INTERVAL")
+	if METRICS_CLEANUP_INTERVAL == "" {
+		METRICS_CLEANUP_INTERVAL = "0 2 * * *" // Cron format: daily at 2 AM
+	}
+
+	// Metrics collection interval in seconds (default: 60)
+	collectionInterval := os.Getenv("METRICS_COLLECTION_INTERVAL")
+	if collectionInterval == "" {
+		METRICS_COLLECTION_INTERVAL = 60
+	} else {
+		if seconds, err := strconv.Atoi(collectionInterval); err == nil {
+			if seconds < 10 {
+				// Minimum 10 seconds to avoid overloading
+				METRICS_COLLECTION_INTERVAL = 10
+			} else {
+				METRICS_COLLECTION_INTERVAL = seconds
+			}
+		} else {
+			METRICS_COLLECTION_INTERVAL = 60
+		}
+	}
 
 	return nil
 }

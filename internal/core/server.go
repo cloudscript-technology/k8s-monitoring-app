@@ -2,6 +2,8 @@ package core
 
 import (
 	"database/sql"
+	"html/template"
+	"io"
 	"net/http"
 
 	"github.com/labstack/echo/v4"
@@ -20,6 +22,16 @@ type ApiServiceConfiguration struct {
 type HTTPServerContext struct {
 	echo.Context
 	S *HTTPServer
+}
+
+// TemplateRenderer is a custom renderer for Echo to use Go templates
+type TemplateRenderer struct {
+	templates *template.Template
+}
+
+// Render renders a template with data
+func (t *TemplateRenderer) Render(w io.Writer, name string, data interface{}, c echo.Context) error {
+	return t.templates.ExecuteTemplate(w, name, data)
 }
 
 func (s *HTTPServer) Health(sc *HTTPServerContext) error {

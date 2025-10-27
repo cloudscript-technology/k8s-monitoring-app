@@ -2,6 +2,8 @@ package server
 
 import (
 	"errors"
+	"os"
+	"path/filepath"
 
 	"k8s-monitoring-app/internal/core"
 	model "k8s-monitoring-app/internal/server/model"
@@ -29,6 +31,25 @@ import (
 	_ "go.elastic.co/apm/module/apmsql/pq"
 )
 
+// findMigrationsPath tries to find the migrations directory from different working directories
+func findMigrationsPath() string {
+	possiblePaths := []string{
+		"database/migrations",       // Running from project root
+		"../database/migrations",    // Running from cmd directory
+		"../../database/migrations", // Running from deeper directory
+	}
+
+	for _, path := range possiblePaths {
+		if _, err := os.Stat(path); err == nil {
+			absPath, _ := filepath.Abs(path)
+			return "file://" + absPath
+		}
+	}
+
+	// Default fallback (running from cmd)
+	return "file://../database/migrations"
+}
+
 func NewHTTPServer(config *core.ApiServiceConfiguration) (*core.HTTPServer, error) {
 	d, err := core.ConnectDatabase()
 	if err != nil {
@@ -40,7 +61,8 @@ func NewHTTPServer(config *core.ApiServiceConfiguration) (*core.HTTPServer, erro
 		return nil, err
 	}
 
-	m, err := migrate.NewWithDatabaseInstance("file://../database/migrations", "postgres", driver)
+	migrationsPath := findMigrationsPath()
+	m, err := migrate.NewWithDatabaseInstance(migrationsPath, "postgres", driver)
 	if err != nil {
 		return nil, err
 	}

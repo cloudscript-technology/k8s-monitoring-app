@@ -16,9 +16,12 @@ type MetricValue struct {
 	ErrorMessage   string `json:"error_message,omitempty"`
 
 	// For PodStatus
-	PodPhase     string `json:"pod_phase,omitempty"` // Running, Pending, Failed, etc.
-	PodReady     bool   `json:"pod_ready,omitempty"`
-	RestartCount int32  `json:"restart_count,omitempty"`
+	PodPhase     string    `json:"pod_phase,omitempty"` // Running, Pending, Failed, etc.
+	PodReady     bool      `json:"pod_ready,omitempty"`
+	RestartCount int32     `json:"restart_count,omitempty"`
+	Pods         []PodInfo `json:"pods,omitempty"` // Individual pod information
+	TotalPods    int       `json:"total_pods,omitempty"`
+	ReadyPods    int       `json:"ready_pods,omitempty"`
 
 	// For PodMemoryUsage
 	MemoryUsageBytes int64   `json:"memory_usage_bytes,omitempty"`
@@ -36,8 +39,37 @@ type MetricValue struct {
 	PvcPercent       float64 `json:"pvc_percent,omitempty"`
 
 	// For PodActiveNodes
-	ActiveNodesCount int      `json:"active_nodes_count,omitempty"`
-	NodeNames        []string `json:"node_names,omitempty"`
+	ActiveNodesCount int        `json:"active_nodes_count,omitempty"`
+	NodeNames        []string   `json:"node_names,omitempty"`
+	Nodes            []NodeInfo `json:"nodes,omitempty"` // Detailed node information
+}
+
+// NodeInfo contains detailed information about a node
+type NodeInfo struct {
+	Name       string            `json:"name"`
+	Ready      bool              `json:"ready"`
+	Status     string            `json:"status"` // "Ready", "NotReady", "Unknown"
+	Conditions []NodeCondition   `json:"conditions,omitempty"`
+	Labels     map[string]string `json:"labels,omitempty"`
+	PodCount   int               `json:"pod_count,omitempty"` // Number of application pods on this node
+}
+
+// NodeCondition represents a node condition
+type NodeCondition struct {
+	Type    string `json:"type"`   // Ready, MemoryPressure, DiskPressure, PIDPressure, NetworkUnavailable
+	Status  string `json:"status"` // True, False, Unknown
+	Reason  string `json:"reason,omitempty"`
+	Message string `json:"message,omitempty"`
+}
+
+// PodInfo contains detailed information about a single pod
+type PodInfo struct {
+	Name         string `json:"name"`
+	Phase        string `json:"phase"`         // Running, Pending, Failed, Succeeded, Unknown
+	Ready        bool   `json:"ready"`         // Is the pod ready
+	RestartCount int32  `json:"restart_count"` // Total restarts
+	NodeName     string `json:"node_name,omitempty"`
+	IP           string `json:"ip,omitempty"`
 }
 
 type ApplicationMetricValue struct {

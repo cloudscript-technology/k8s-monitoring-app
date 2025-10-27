@@ -1,19 +1,24 @@
 package k8s
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"io"
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
+	"strings"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
+	"k8s.io/client-go/tools/remotecommand"
 	metricsv1beta1 "k8s.io/metrics/pkg/apis/metrics/v1beta1"
 	metricsclientset "k8s.io/metrics/pkg/client/clientset/versioned"
 )
@@ -21,6 +26,7 @@ import (
 type Client struct {
 	clientset        *kubernetes.Clientset
 	metricsClientset *metricsclientset.Clientset
+	config           *rest.Config
 }
 
 // NewClient creates a Kubernetes client
@@ -45,6 +51,7 @@ func NewClient() (*Client, error) {
 	return &Client{
 		clientset:        clientset,
 		metricsClientset: metricsClientset,
+		config:           config,
 	}, nil
 }
 
@@ -145,6 +152,106 @@ func (c *Client) GetNodesForPods(ctx context.Context, namespace, labelSelector s
 	return nodes, nil
 }
 
+// NodeInfo contains detailed node status information
+type NodeInfo struct {
+	Name       string
+	Ready      bool
+	Status     string
+	Conditions []NodeCondition
+	Labels     map[string]string
+	PodCount   int
+}
+
+// NodeCondition represents a node condition
+type NodeCondition struct {
+	Type    string
+	Status  string
+	Reason  string
+	Message string
+}
+
+// GetNodesInfoForPods returns detailed information about nodes where pods are running
+func (c *Client) GetNodesInfoForPods(ctx context.Context, namespace, labelSelector string) ([]NodeInfo, error) {
+	// Get pods to find which nodes they're on
+	pods, err := c.GetPodsByLabelSelector(ctx, namespace, labelSelector)
+	if err != nil {
+		return nil, err
+	}
+
+	// Count pods per node
+	nodePodCount := make(map[string]int)
+	nodeNames := make(map[string]bool)
+	for _, pod := range pods.Items {
+		if pod.Spec.NodeName != "" {
+			nodeNames[pod.Spec.NodeName] = true
+			nodePodCount[pod.Spec.NodeName]++
+		}
+	}
+
+	// Get detailed info for each node
+	nodesInfo := make([]NodeInfo, 0, len(nodeNames))
+	for nodeName := range nodeNames {
+		node, err := c.clientset.CoreV1().Nodes().Get(ctx, nodeName, metav1.GetOptions{})
+		if err != nil {
+			// If we can't get node info, still add it but mark as unknown
+			nodesInfo = append(nodesInfo, NodeInfo{
+				Name:     nodeName,
+				Ready:    false,
+				Status:   "Unknown",
+				PodCount: nodePodCount[nodeName],
+			})
+			continue
+		}
+
+		// Determine node ready status
+		ready := false
+		status := "Unknown"
+		var conditions []NodeCondition
+
+		for _, condition := range node.Status.Conditions {
+			conditions = append(conditions, NodeCondition{
+				Type:    string(condition.Type),
+				Status:  string(condition.Status),
+				Reason:  condition.Reason,
+				Message: condition.Message,
+			})
+
+			if condition.Type == corev1.NodeReady {
+				if condition.Status == corev1.ConditionTrue {
+					ready = true
+					status = "Ready"
+				} else if condition.Status == corev1.ConditionFalse {
+					status = "NotReady"
+				} else {
+					status = "Unknown"
+				}
+			}
+		}
+
+		// Check for other problematic conditions
+		if ready {
+			for _, condition := range node.Status.Conditions {
+				if condition.Type != corev1.NodeReady && condition.Status == corev1.ConditionTrue {
+					// Node has issues (MemoryPressure, DiskPressure, etc.)
+					status = fmt.Sprintf("Ready (with %s)", condition.Type)
+					break
+				}
+			}
+		}
+
+		nodesInfo = append(nodesInfo, NodeInfo{
+			Name:       nodeName,
+			Ready:      ready,
+			Status:     status,
+			Conditions: conditions,
+			Labels:     node.Labels,
+			PodCount:   nodePodCount[nodeName],
+		})
+	}
+
+	return nodesInfo, nil
+}
+
 // GetPVCUsage returns PVC usage information
 func (c *Client) GetPVCUsage(ctx context.Context, namespace, pvcName string) (*corev1.PersistentVolumeClaim, error) {
 	pvc, err := c.clientset.CoreV1().PersistentVolumeClaims(namespace).Get(ctx, pvcName, metav1.GetOptions{})
@@ -160,6 +267,177 @@ type HealthCheckResult struct {
 	StatusCode     int
 	ResponseTimeMs int64
 	ErrorMessage   string
+}
+
+// PVCUsageInfo contains PVC usage information
+type PVCUsageInfo struct {
+	CapacityBytes  int64
+	UsedBytes      int64
+	AvailableBytes int64
+	Percent        float64
+}
+
+// GetPVCUsageWithDiskInfo returns detailed PVC usage by executing df in a pod
+func (c *Client) GetPVCUsageWithDiskInfo(ctx context.Context, namespace, pvcName, podLabelSelector, containerName, mountPath string) (*PVCUsageInfo, error) {
+	// Get the PVC to retrieve capacity
+	pvc, err := c.GetPVCUsage(ctx, namespace, pvcName)
+	if err != nil {
+		return nil, err
+	}
+
+	capacity := pvc.Status.Capacity[corev1.ResourceStorage]
+	capacityBytes := capacity.Value()
+
+	// If no mount path provided, try to discover it
+	if mountPath == "" {
+		discoveredPath, err := c.DiscoverPVCMountPath(ctx, namespace, pvcName, podLabelSelector)
+		if err != nil {
+			return nil, fmt.Errorf("failed to discover mount path: %w", err)
+		}
+		mountPath = discoveredPath
+	}
+
+	// Get a pod that uses this PVC
+	pods, err := c.GetPodsByLabelSelector(ctx, namespace, podLabelSelector)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(pods.Items) == 0 {
+		return nil, fmt.Errorf("no pods found with label selector: %s", podLabelSelector)
+	}
+
+	// Find a running pod
+	var targetPod *corev1.Pod
+	for i := range pods.Items {
+		if pods.Items[i].Status.Phase == corev1.PodRunning {
+			targetPod = &pods.Items[i]
+			break
+		}
+	}
+
+	if targetPod == nil {
+		return nil, fmt.Errorf("no running pods found")
+	}
+
+	// If no container specified, use the first one
+	if containerName == "" && len(targetPod.Spec.Containers) > 0 {
+		containerName = targetPod.Spec.Containers[0].Name
+	}
+
+	// Execute df command to get disk usage
+	// Using df -B1 to get output in bytes for accurate parsing
+	command := []string{"df", "-B1", mountPath}
+	output, err := c.ExecCommandInPod(ctx, namespace, targetPod.Name, containerName, command)
+	if err != nil {
+		return nil, fmt.Errorf("failed to execute df command: %w", err)
+	}
+
+	// Parse df output
+	usedBytes, availableBytes, err := parseDfOutput(output)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse df output: %w", err)
+	}
+
+	var percent float64
+	if capacityBytes > 0 {
+		percent = float64(usedBytes) / float64(capacityBytes) * 100
+	}
+
+	return &PVCUsageInfo{
+		CapacityBytes:  capacityBytes,
+		UsedBytes:      usedBytes,
+		AvailableBytes: availableBytes,
+		Percent:        percent,
+	}, nil
+}
+
+// DiscoverPVCMountPath discovers the mount path of a PVC in a pod
+func (c *Client) DiscoverPVCMountPath(ctx context.Context, namespace, pvcName, podLabelSelector string) (string, error) {
+	pods, err := c.GetPodsByLabelSelector(ctx, namespace, podLabelSelector)
+	if err != nil {
+		return "", err
+	}
+
+	for _, pod := range pods.Items {
+		// Find volume that references the PVC
+		for _, volume := range pod.Spec.Volumes {
+			if volume.PersistentVolumeClaim != nil && volume.PersistentVolumeClaim.ClaimName == pvcName {
+				// Found the volume, now find its mount path
+				for _, container := range pod.Spec.Containers {
+					for _, volumeMount := range container.VolumeMounts {
+						if volumeMount.Name == volume.Name {
+							return volumeMount.MountPath, nil
+						}
+					}
+				}
+			}
+		}
+	}
+
+	return "", fmt.Errorf("could not find mount path for PVC %s in pods with selector %s", pvcName, podLabelSelector)
+}
+
+// ExecCommandInPod executes a command in a pod and returns the output
+func (c *Client) ExecCommandInPod(ctx context.Context, namespace, podName, containerName string, command []string) (string, error) {
+	req := c.clientset.CoreV1().RESTClient().Post().
+		Resource("pods").
+		Name(podName).
+		Namespace(namespace).
+		SubResource("exec").
+		VersionedParams(&corev1.PodExecOptions{
+			Container: containerName,
+			Command:   command,
+			Stdout:    true,
+			Stderr:    true,
+		}, scheme.ParameterCodec)
+
+	exec, err := remotecommand.NewSPDYExecutor(c.config, "POST", req.URL())
+	if err != nil {
+		return "", fmt.Errorf("failed to create executor: %w", err)
+	}
+
+	var stdout, stderr bytes.Buffer
+	err = exec.StreamWithContext(ctx, remotecommand.StreamOptions{
+		Stdout: &stdout,
+		Stderr: &stderr,
+	})
+
+	if err != nil {
+		return "", fmt.Errorf("failed to execute command: %w (stderr: %s)", err, stderr.String())
+	}
+
+	return stdout.String(), nil
+}
+
+// parseDfOutput parses the output of df command
+// Expected format:
+// Filesystem     1B-blocks      Used Available Use% Mounted on
+// /dev/sda1   10737418240 5368709120 5368709120  50% /data
+func parseDfOutput(output string) (usedBytes int64, availableBytes int64, err error) {
+	lines := strings.Split(strings.TrimSpace(output), "\n")
+	if len(lines) < 2 {
+		return 0, 0, fmt.Errorf("invalid df output: expected at least 2 lines, got %d", len(lines))
+	}
+
+	// Parse the data line (second line)
+	fields := strings.Fields(lines[1])
+	if len(fields) < 4 {
+		return 0, 0, fmt.Errorf("invalid df output format: expected at least 4 fields, got %d", len(fields))
+	}
+
+	// Fields: [Filesystem, Blocks, Used, Available, Use%, Mounted]
+	used, err := strconv.ParseInt(fields[2], 10, 64)
+	if err != nil {
+		return 0, 0, fmt.Errorf("failed to parse used bytes: %w", err)
+	}
+
+	available, err := strconv.ParseInt(fields[3], 10, 64)
+	if err != nil {
+		return 0, 0, fmt.Errorf("failed to parse available bytes: %w", err)
+	}
+
+	return used, available, nil
 }
 
 // PerformHealthCheck performs an HTTP health check on a URL

@@ -243,10 +243,23 @@ Content-Type: application/json
   "application_id": "uuid",
   "type_id": "uuid",
   "configuration": {
-    "pvc_name": "my-pvc"
+    "pvc_name": "my-pvc",
+    "pod_label_selector": "app=myapp",
+    "container_name": "main",  // Optional: defaults to first container
+    "pvc_mount_path": "/data"  // Optional: auto-discovered if not provided
   }
 }
 ```
+
+**Required fields:**
+- `pvc_name`: Name of the PVC to monitor
+- `pod_label_selector`: Label selector to find pods that mount this PVC
+
+**Optional fields:**
+- `container_name`: Specific container to exec into (defaults to first container)
+- `pvc_mount_path`: Mount path of the PVC in the pod (auto-discovered if not provided)
+
+**Note:** The system automatically discovers the mount path by inspecting the pod's volume mounts. The PVC usage is obtained by executing `df` command inside the pod.
 
 ##### PodActiveNodes Configuration
 ```

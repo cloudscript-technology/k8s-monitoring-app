@@ -608,7 +608,7 @@
                         ],
                         "body": {
                             "mode": "raw",
-                            "raw": "{\n    \"application_id\": \"{{application_id}}\",\n    \"type_id\": \"{{pvcusage_type_id}}\",\n    \"configuration\": {\n        \"pvc_name\": \"web-app-data\"\n    }\n}"
+                            "raw": "{\n    \"application_id\": \"{{application_id}}\",\n    \"type_id\": \"{{pvcusage_type_id}}\",\n    \"configuration\": {\n        \"pvc_name\": \"web-app-data\",\n        \"pod_label_selector\": \"app=web-app\",\n        \"container_name\": \"web-app\",\n        \"pvc_mount_path\": \"/data\"\n    }\n}"
                         },
                         "url": {
                             "raw": "{{base_url}}/api/v1/application-metrics",
@@ -621,7 +621,7 @@
                                 "application-metrics"
                             ]
                         },
-                        "description": "Configure PVC usage monitoring"
+                        "description": "Configure PVC usage monitoring with real disk usage collection.\n\nRequired fields:\n- pvc_name: Name of the PVC to monitor\n- pod_label_selector: Label selector to find pods using this PVC\n\nOptional fields:\n- container_name: Specific container to exec into (defaults to first container)\n- pvc_mount_path: Mount path of the PVC (auto-discovered if not provided)\n\nThe system executes 'df' command inside the pod to get real disk usage."
                     },
                     "response": []
                 },

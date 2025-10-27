@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ .Title }} - K8s Monitoring</title>
+    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+
+<body>
+    <nav class="navbar">
+        <div class="container">
+            <div class="navbar-brand">
+                <h1>🚀 K8s Monitoring</h1>
+            </div>
+            <div class="navbar-menu">
+                <a href="/" class="nav-link">Dashboard</a>
+            </div>
+        </div>
+    </nav>
+
+    <main class="main-content">
+        <div class="container">
+            <div class="dashboard">
+                <div class="dashboard-header">
+                    <h2>Dashboard</h2>
+                    <div class="refresh-info">
+                        <span class="status-indicator"></span>
+                        Auto-refresh: 10s
+                    </div>
+                </div>
+
+                <div class="projects-grid" hx-get="/api/ui/projects" hx-trigger="load, every 10s" hx-swap="innerHTML">
+                    <div class="loading">Loading projects...</div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer class="footer">
+        <div class="container">
+            <p>K8s Monitoring App - Real-time Kubernetes Monitoring</p>
+        </div>
+    </footer>
+</body>
+
+</html>

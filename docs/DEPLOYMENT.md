@@ -41,6 +41,11 @@ rules:
     resources: ["persistentvolumeclaims"]
     verbs: ["get", "list"]
   
+  # Pod exec access (for PVC usage monitoring with df)
+  - apiGroups: [""]
+    resources: ["pods/exec"]
+    verbs: ["create"]
+  
   # Node access
   - apiGroups: [""]
     resources: ["nodes"]

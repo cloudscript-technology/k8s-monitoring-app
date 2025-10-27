@@ -182,20 +182,48 @@ func (repo *repository) Update(ctx context.Context, applicationMetric *applicati
 }
 
 func (repo *repository) Delete(ctx context.Context, id string) error {
-	sqlString := `DELETE FROM application_metrics WHERE id = $1`
-
-	result, err := repo.db.ExecContext(ctx, sqlString, id)
+	// Start a transaction to ensure both deletes happen atomically
+	tx, err := repo.db.BeginTx(ctx, nil)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to begin transaction: %w", err)
+	}
+	defer tx.Rollback() // Will be no-op if tx.Commit() is called
+
+	// First, delete all metric values associated with this metric
+	deleteValuesSQL := `DELETE FROM application_metric_values WHERE application_metric_id = $1`
+	valuesResult, err := tx.ExecContext(ctx, deleteValuesSQL, id)
+	if err != nil {
+		return fmt.Errorf("failed to delete metric values: %w", err)
+	}
+
+	// Log how many values were deleted
+	valuesDeleted, _ := valuesResult.RowsAffected()
+	if valuesDeleted > 0 {
+		log.Info(ctx).
+			Str("metric_id", id).
+			Int64("values_deleted", valuesDeleted).
+			Msg("deleted metric values before deleting metric")
+	}
+
+	// Then, delete the metric itself
+	deleteMetricSQL := `DELETE FROM application_metrics WHERE id = $1`
+	result, err := tx.ExecContext(ctx, deleteMetricSQL, id)
+	if err != nil {
+		return fmt.Errorf("failed to delete metric: %w", err)
 	}
 
 	rowsAffected, err := result.RowsAffected()
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to get rows affected: %w", err)
 	}
 
 	if rowsAffected == 0 {
 		return sql.ErrNoRows
+	}
+
+	// Commit the transaction
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("failed to commit transaction: %w", err)
 	}
 
 	return nil

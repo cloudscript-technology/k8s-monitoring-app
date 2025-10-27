@@ -1,0 +1,229 @@
+{{ define "application-metrics" }}
+<div class="app-container">
+    <div class="app-header">
+        <div class="app-title">
+            <h4>{{ .ApplicationName }}</h4>
+            <span class="app-namespace">{{ .ApplicationNamespace }}</span>
+        </div>
+        <div class="app-nodes">
+            {{ $nodeMetric := index .MetricsByType "PodActiveNodes" }}
+            {{ if and $nodeMetric $nodeMetric.LatestValue }}
+            {{ $nodes := index $nodeMetric.LatestValue.Value "nodes" }}
+            {{ if $nodes }}
+            <div class="node-badge">
+                {{ range $nodes }}
+                {{ $nodeClass := "node-label" }}
+                {{ $nodeTitle := .name }}
+                {{ if eq .ready true }}
+                {{ $nodeClass = "node-label node-ready" }}
+                {{ $nodeTitle = printf "%s (Ready - %d pods)" .name .pod_count }}
+                {{ else if eq .status "NotReady" }}
+                {{ $nodeClass = "node-label node-not-ready" }}
+                {{ $nodeTitle = printf "%s (Not Ready)" .name }}
+                {{ else }}
+                {{ $nodeClass = "node-label node-unknown" }}
+                {{ $nodeTitle = printf "%s (Unknown)" .name }}
+                {{ end }}
+                <span class="{{ $nodeClass }}" title="{{ $nodeTitle }}">
+                    {{ .name }}
+                    <span class="node-pod-count">{{ .pod_count }}</span>
+                </span>
+                {{ end }}
+            </div>
+            {{ else }}
+            {{ $nodeNames := index $nodeMetric.LatestValue.Value "node_names" }}
+            {{ if $nodeNames }}
+            <div class="node-badge">
+                {{ range $nodeNames }}
+                <span class="node-label">{{ . }}</span>
+                {{ end }}
+            </div>
+            {{ end }}
+            {{ end }}
+            {{ end }}
+        </div>
+    </div>
+
+    <div class="metrics-row">
+        <div class="metric-box pods-box">
+            <div class="metric-label">pods</div>
+            <div class="metric-values">
+                {{ $podMetric := index .MetricsByType "PodStatus" }}
+                {{ $nodeMetric := index .MetricsByType "PodActiveNodes" }}
+                {{ if and $podMetric $podMetric.LatestValue }}
+                {{ $phase := index $podMetric.LatestValue.Value "pod_phase" }}
+                {{ $ready := index $podMetric.LatestValue.Value "pod_ready" }}
+                {{ $restartCount := index $podMetric.LatestValue.Value "restart_count" }}
+                {{ $podClass := "pod-unknown" }}
+                {{ $podTitle := "" }}
+                {{ if and (eq $phase "Running") $ready }}
+                {{ $podClass = "pod-running" }}
+                {{ $podTitle = "All pods running and ready" }}
+                {{ if $restartCount }}
+                {{ if gt $restartCount 0.0 }}
+                {{ $podTitle = printf "Running (⚠ %v restarts total)" $restartCount }}
+                {{ end }}
+                {{ end }}
+                {{ else if eq $phase "Degraded" }}
+                {{ $podClass = "pod-error" }}
+                {{ $podTitle = "⚠ Some pods failed or unavailable" }}
+                {{ else if eq $phase "Running" }}
+                {{ $podClass = "pod-warning" }}
+                {{ $podTitle = "Running but not all pods ready" }}
+                {{ else if eq $phase "Pending" }}
+                {{ $podClass = "pod-pending" }}
+                {{ $podTitle = "Pods starting up" }}
+                {{ else if eq $phase "NotFound" }}
+                {{ $podClass = "pod-error" }}
+                {{ $podTitle = "No pods found" }}
+                {{ else }}
+                {{ $podClass = "pod-error" }}
+                {{ $podTitle = printf "Pod status: %s" $phase }}
+                {{ end }}
+
+                {{ $pods := index $podMetric.LatestValue.Value "pods" }}
+                {{ if $pods }}
+                {{ range $index, $pod := $pods }}
+                {{ $individualClass := "pod-unknown" }}
+                {{ $individualTitle := printf "%s" $pod.name }}
+                {{ if and (eq $pod.phase "Running") $pod.ready }}
+                {{ $individualClass = "pod-running" }}
+                {{ $individualTitle = printf "%s (Running - %d restarts)" $pod.name $pod.restart_count }}
+                {{ else if eq $pod.phase "Failed" }}
+                {{ $individualClass = "pod-error" }}
+                {{ $individualTitle = printf "%s (Failed)" $pod.name }}
+                {{ else if eq $pod.phase "Pending" }}
+                {{ $individualClass = "pod-pending" }}
+                {{ $individualTitle = printf "%s (Pending)" $pod.name }}
+                {{ else if eq $pod.phase "Running" }}
+                {{ $individualClass = "pod-warning" }}
+                {{ $individualTitle = printf "%s (Not Ready)" $pod.name }}
+                {{ else }}
+                {{ $individualClass = "pod-unknown" }}
+                {{ $individualTitle = printf "%s (%s)" $pod.name $pod.phase }}
+                {{ end }}
+                <span class="pod-count {{ $individualClass }}" title="{{ $individualTitle }}">{{ add $index 1 }}</span>
+                {{ end }}
+                {{ else }}
+                {{ if and $nodeMetric $nodeMetric.LatestValue }}
+                {{ $activeCount := index $nodeMetric.LatestValue.Value "active_nodes_count" }}
+                {{ if eq $activeCount 1.0 }}
+                <span class="pod-count {{ $podClass }}" title="{{ $podTitle }}">1</span>
+                {{ else if eq $activeCount 2.0 }}
+                <span class="pod-count {{ $podClass }}" title="{{ $podTitle }}">1</span>
+                <span class="pod-count {{ $podClass }}" title="{{ $podTitle }}">2</span>
+                {{ else if eq $activeCount 3.0 }}
+                <span class="pod-count {{ $podClass }}" title="{{ $podTitle }}">1</span>
+                <span class="pod-count {{ $podClass }}" title="{{ $podTitle }}">2</span>
+                <span class="pod-count {{ $podClass }}" title="{{ $podTitle }}">3</span>
+                {{ else }}
+                <span class="pod-count {{ $podClass }}" title="{{ $podTitle }}">{{ printf "%.0f" $activeCount }}</span>
+                {{ end }}
+                {{ else }}
+                <span class="pod-count {{ $podClass }}" title="{{ $podTitle }}">1</span>
+                {{ end }}
+                {{ end }}
+                {{ else }}
+                <span class="pod-count pod-unknown">?</span>
+                {{ end }}
+            </div>
+        </div>
+
+        <div class="metric-box health-box">
+            <div class="metric-label">health</div>
+            <div class="metric-value">
+                {{ $healthMetric := index .MetricsByType "HealthCheck" }}
+                {{ if and $healthMetric $healthMetric.LatestValue }}
+                {{ $status := index $healthMetric.LatestValue.Value "status" }}
+                {{ $statusCode := index $healthMetric.LatestValue.Value "status_code" }}
+                {{ $responseTime := index $healthMetric.LatestValue.Value "response_time_ms" }}
+                {{ $errorMsg := index $healthMetric.LatestValue.Value "error_message" }}
+                {{ $url := index $healthMetric.Configuration "health_check_url" }}
+
+                <div class="health-url-container">
+                    <div class="health-url">{{ $url }}</div>
+                    {{ if eq $status "up" }}
+                    <div class="health-status health-status-ok" title="HTTP {{ $statusCode }} - {{ $responseTime }}ms">
+                        <span class="health-icon">✓</span>
+                        <span class="health-text">healthy</span>
+                        <span class="health-time">{{ $responseTime }}ms</span>
+                    </div>
+                    {{ else }}
+                    <div class="health-status health-status-error"
+                        title="Failed{{ if $errorMsg }} - {{ $errorMsg }}{{ end }}">
+                        <span class="health-icon">✗</span>
+                        <span class="health-text">failed</span>
+                        {{ if $errorMsg }}<span class="health-error-msg">{{ $errorMsg }}</span>{{ end }}
+                    </div>
+                    {{ end }}
+                </div>
+                {{ else if and $healthMetric $healthMetric.Configuration }}
+                {{ $url := index $healthMetric.Configuration "health_check_url" }}
+                <div class="health-url-container">
+                    <div class="health-url">{{ $url }}</div>
+                    <div class="health-status health-status-unknown">
+                        <span class="health-icon">⏱</span>
+                        <span class="health-text">waiting for data...</span>
+                    </div>
+                </div>
+                {{ else }}
+                <div class="health-url">Not configured</div>
+                {{ end }}
+            </div>
+        </div>
+    </div>
+
+    <div class="side-metrics">
+        <div class="side-metric-item">
+            <div class="side-metric-label">mem</div>
+            {{ $memMetric := index .MetricsByType "PodMemoryUsage" }}
+            {{ if and $memMetric $memMetric.LatestValue }}
+            {{ $memPercent := index $memMetric.LatestValue.Value "memory_percent" }}
+            {{ $memUsage := index $memMetric.LatestValue.Value "memory_usage_bytes" }}
+            {{ $memLimit := index $memMetric.LatestValue.Value "memory_limit_bytes" }}
+            <div class="side-metric-bar" title="Memory: {{ div $memUsage 1048576 }}MB / {{ div $memLimit 1048576 }}MB">
+                <div class="bar-fill" style="width: {{ printf " %.0f" $memPercent }}%"></div>
+            </div>
+            <div class="side-metric-value" title="{{ div $memUsage 1048576 }}MB used">{{ printf "%.1f" $memPercent }}%
+            </div>
+            {{ else }}
+            <div class="side-metric-value">-</div>
+            {{ end }}
+        </div>
+
+        <div class="side-metric-item">
+            <div class="side-metric-label">cpu</div>
+            {{ $cpuMetric := index .MetricsByType "PodCpuUsage" }}
+            {{ if and $cpuMetric $cpuMetric.LatestValue }}
+            {{ $cpuPercent := index $cpuMetric.LatestValue.Value "cpu_percent" }}
+            {{ $cpuUsage := index $cpuMetric.LatestValue.Value "cpu_usage_millicores" }}
+            {{ $cpuLimit := index $cpuMetric.LatestValue.Value "cpu_limit_millicores" }}
+            <div class="side-metric-bar" title="CPU: {{ $cpuUsage }}m / {{ $cpuLimit }}m">
+                <div class="bar-fill" style="width: {{ printf " %.0f" $cpuPercent }}%"></div>
+            </div>
+            <div class="side-metric-value" title="{{ $cpuUsage }} millicores">{{ printf "%.1f" $cpuPercent }}%</div>
+            {{ else }}
+            <div class="side-metric-value">-</div>
+            {{ end }}
+        </div>
+
+        <div class="side-metric-item">
+            <div class="side-metric-label">disk</div>
+            {{ $pvcMetric := index .MetricsByType "PvcUsage" }}
+            {{ if and $pvcMetric $pvcMetric.LatestValue }}
+            {{ $pvcPercent := index $pvcMetric.LatestValue.Value "pvc_percent" }}
+            {{ $pvcUsed := index $pvcMetric.LatestValue.Value "pvc_used_bytes" }}
+            {{ $pvcCapacity := index $pvcMetric.LatestValue.Value "pvc_capacity_bytes" }}
+            <div class="side-metric-bar"
+                title="Disk: {{ div $pvcUsed 1073741824 }}GB / {{ div $pvcCapacity 1073741824 }}GB">
+                <div class="bar-fill" style="width: {{ printf " %.0f" $pvcPercent }}%"></div>
+            </div>
+            <div class="side-metric-value" title="{{ div $pvcUsed 1073741824 }}GB used">{{ printf "%.1f" $pvcPercent }}%
+            </div>
+            {{ else }}
+            <div class="side-metric-value" title="No PVC configured">-</div>
+            {{ end }}
+        </div>
+    </div>
+</div>
+{{ end }}

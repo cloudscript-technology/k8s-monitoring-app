@@ -21,8 +21,7 @@ func main() {
 
 	err := env.GetEnv()
 	if err != nil {
-		log.Error(context.Background(), err).Msg("Erro ao carregar variáveis de ambiente")
-		os.Exit(1)
+		log.Warn(context.Background()).Msg("Aviso: .env não encontrado, usando variáveis de ambiente do sistema")
 	}
 
 	httpServer, err := server.NewHTTPServer(&core.ApiServiceConfiguration{})

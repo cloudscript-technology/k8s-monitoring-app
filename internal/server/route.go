@@ -5,6 +5,7 @@ import (
 
 	"k8s-monitoring-app/internal/core"
 	model "k8s-monitoring-app/internal/server/model"
+	"k8s-monitoring-app/internal/web"
 
 	"gitlab.cloudscript.com.br/general/go-instrumentation.git/log"
 )
@@ -12,8 +13,32 @@ import (
 func bindRoutes(s *core.HTTPServer) {
 	log.Info(context.Background()).Msg("Binding routes")
 
+	// Web UI Handler
+	webHandler, err := web.NewHandler()
+	if err != nil {
+		log.Error(context.Background(), err).Msg("Failed to initialize web handler")
+	} else {
+		log.Info(context.Background()).Msg("Web handler initialized successfully")
+	}
+
+	// Health check
 	s.Api.GET("/health", s.WrapHandler(s.Health))
 
+	// Web UI routes
+	if webHandler != nil {
+		log.Info(context.Background()).Msg("Binding web UI routes")
+		s.Api.GET("/", s.WrapHandler(webHandler.Dashboard))
+		s.Api.Static("/static", "web/static")
+
+		// HTMX partial endpoints
+		apiUI := s.Api.Group("/api/ui")
+		apiUI.GET("/projects", s.WrapHandler(webHandler.GetProjects))
+		apiUI.GET("/applications/:id/metrics", s.WrapHandler(webHandler.GetApplicationMetrics))
+	} else {
+		log.Warn(context.Background()).Msg("Web handler is nil, skipping web UI routes")
+	}
+
+	// REST API routes
 	apiV1 := s.Api.Group("/api/v1")
 
 	// Project routes

@@ -122,10 +122,23 @@ Estes endpoints são **read-only** pois os valores são coletados automaticament
     "application_id": "{{application_id}}",
     "type_id": "{{pvcusage_type_id}}",
     "configuration": {
-        "pvc_name": "my-pvc"
+        "pvc_name": "my-pvc",
+        "pod_label_selector": "app=myapp",
+        "container_name": "main",
+        "pvc_mount_path": "/data"
     }
 }
 ```
+
+**Required fields:**
+- `pvc_name`: Name of the PVC to monitor
+- `pod_label_selector`: Label selector to find pods using this PVC
+
+**Optional fields:**
+- `container_name`: Specific container to exec into (defaults to first container)
+- `pvc_mount_path`: Mount path of the PVC (auto-discovered if not provided)
+
+**Note:** The system executes `df` command inside the pod to collect real disk usage.
 
 ##### Pod Active Nodes
 ```json

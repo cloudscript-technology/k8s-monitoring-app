@@ -1,8 +1,9 @@
 {{ define "application-metrics" }}
 <div class="app-container">
+    <!-- Header with Title and Nodes -->
     <div class="app-header">
-        <div class="app-title">
-            <h4>{{ .ApplicationName }}</h4>
+        <div class="app-info">
+            <h4 class="app-name">{{ .ApplicationName }}</h4>
             <span class="app-namespace">{{ .ApplicationNamespace }}</span>
         </div>
         <div class="app-nodes">
@@ -10,7 +11,7 @@
             {{ if and $nodeMetric $nodeMetric.LatestValue }}
             {{ $nodes := index $nodeMetric.LatestValue.Value "nodes" }}
             {{ if $nodes }}
-            <div class="node-badge">
+            <div class="node-badges">
                 {{ range $nodes }}
                 {{ $nodeClass := "node-label" }}
                 {{ $nodeTitle := .name }}
@@ -25,15 +26,14 @@
                 {{ $nodeTitle = printf "%s (Unknown)" .name }}
                 {{ end }}
                 <span class="{{ $nodeClass }}" title="{{ $nodeTitle }}">
-                    {{ .name }}
-                    <span class="node-pod-count">{{ .pod_count }}</span>
+                    {{ .name }} <span class="node-count">{{ .pod_count }}</span>
                 </span>
                 {{ end }}
             </div>
             {{ else }}
             {{ $nodeNames := index $nodeMetric.LatestValue.Value "node_names" }}
             {{ if $nodeNames }}
-            <div class="node-badge">
+            <div class="node-badges">
                 {{ range $nodeNames }}
                 <span class="node-label">{{ . }}</span>
                 {{ end }}
@@ -44,10 +44,15 @@
         </div>
     </div>
 
-    <div class="metrics-row">
-        <div class="metric-box pods-box">
-            <div class="metric-label">pods</div>
-            <div class="metric-values">
+    <!-- Main Metrics Grid -->
+    <div class="metrics-grid">
+        <!-- Pods Status -->
+        <div class="metric-card pods-card">
+            <div class="metric-card-label">
+                <span class="metric-icon">🔵</span>
+                <span>Pods</span>
+            </div>
+            <div class="metric-card-content">
                 {{ $podMetric := index .MetricsByType "PodStatus" }}
                 {{ $nodeMetric := index .MetricsByType "PodActiveNodes" }}
                 {{ if and $podMetric $podMetric.LatestValue }}
@@ -56,14 +61,13 @@
                 {{ $restartCount := index $podMetric.LatestValue.Value "restart_count" }}
                 {{ $podClass := "pod-unknown" }}
                 {{ $podTitle := "" }}
+
                 {{ if and (eq $phase "Running") $ready }}
                 {{ $podClass = "pod-running" }}
                 {{ $podTitle = "All pods running and ready" }}
-                {{ if $restartCount }}
-                {{ if gt $restartCount 0.0 }}
+                {{ if $restartCount }}{{ if gt $restartCount 0.0 }}
                 {{ $podTitle = printf "Running (⚠ %v restarts total)" $restartCount }}
-                {{ end }}
-                {{ end }}
+                {{ end }}{{ end }}
                 {{ else if eq $phase "Degraded" }}
                 {{ $podClass = "pod-error" }}
                 {{ $podTitle = "⚠ Some pods failed or unavailable" }}
@@ -81,57 +85,43 @@
                 {{ $podTitle = printf "Pod status: %s" $phase }}
                 {{ end }}
 
-                {{ $pods := index $podMetric.LatestValue.Value "pods" }}
-                {{ if $pods }}
-                {{ range $index, $pod := $pods }}
-                {{ $individualClass := "pod-unknown" }}
-                {{ $individualTitle := printf "%s" $pod.name }}
-                {{ if and (eq $pod.phase "Running") $pod.ready }}
-                {{ $individualClass = "pod-running" }}
-                {{ $individualTitle = printf "%s (Running - %d restarts)" $pod.name $pod.restart_count }}
-                {{ else if eq $pod.phase "Failed" }}
-                {{ $individualClass = "pod-error" }}
-                {{ $individualTitle = printf "%s (Failed)" $pod.name }}
-                {{ else if eq $pod.phase "Pending" }}
-                {{ $individualClass = "pod-pending" }}
-                {{ $individualTitle = printf "%s (Pending)" $pod.name }}
-                {{ else if eq $pod.phase "Running" }}
-                {{ $individualClass = "pod-warning" }}
-                {{ $individualTitle = printf "%s (Not Ready)" $pod.name }}
-                {{ else }}
-                {{ $individualClass = "pod-unknown" }}
-                {{ $individualTitle = printf "%s (%s)" $pod.name $pod.phase }}
-                {{ end }}
-                <span class="pod-count {{ $individualClass }}" title="{{ $individualTitle }}">{{ add $index 1 }}</span>
-                {{ end }}
-                {{ else }}
                 {{ if and $nodeMetric $nodeMetric.LatestValue }}
                 {{ $activeCount := index $nodeMetric.LatestValue.Value "active_nodes_count" }}
-                {{ if eq $activeCount 1.0 }}
-                <span class="pod-count {{ $podClass }}" title="{{ $podTitle }}">1</span>
-                {{ else if eq $activeCount 2.0 }}
-                <span class="pod-count {{ $podClass }}" title="{{ $podTitle }}">1</span>
-                <span class="pod-count {{ $podClass }}" title="{{ $podTitle }}">2</span>
-                {{ else if eq $activeCount 3.0 }}
-                <span class="pod-count {{ $podClass }}" title="{{ $podTitle }}">1</span>
-                <span class="pod-count {{ $podClass }}" title="{{ $podTitle }}">2</span>
-                <span class="pod-count {{ $podClass }}" title="{{ $podTitle }}">3</span>
+                <div class="pod-indicators">
+                    {{ if eq $activeCount 1.0 }}
+                    <span class="pod-count {{ $podClass }}" title="{{ $podTitle }}">1</span>
+                    {{ else if eq $activeCount 2.0 }}
+                    <span class="pod-count {{ $podClass }}" title="{{ $podTitle }}">1</span>
+                    <span class="pod-count {{ $podClass }}" title="{{ $podTitle }}">2</span>
+                    {{ else if eq $activeCount 3.0 }}
+                    <span class="pod-count {{ $podClass }}" title="{{ $podTitle }}">1</span>
+                    <span class="pod-count {{ $podClass }}" title="{{ $podTitle }}">2</span>
+                    <span class="pod-count {{ $podClass }}" title="{{ $podTitle }}">3</span>
+                    {{ else if gt $activeCount 3.0 }}
+                    <span class="pod-count {{ $podClass }}" title="{{ $podTitle }}">1</span>
+                    <span class="pod-count {{ $podClass }}" title="{{ $podTitle }}">2</span>
+                    <span class="pod-count {{ $podClass }}" title="{{ $podTitle }}">3</span>
+                    <span class="pod-count-more">+{{ printf "%.0f" (sub $activeCount 3.0) }}</span>
+                    {{ else }}
+                    <span class="metric-no-data">No data</span>
+                    {{ end }}
+                </div>
                 {{ else }}
-                <span class="pod-count {{ $podClass }}" title="{{ $podTitle }}">{{ printf "%.0f" $activeCount }}</span>
+                <span class="metric-no-data">No data</span>
                 {{ end }}
                 {{ else }}
-                <span class="pod-count {{ $podClass }}" title="{{ $podTitle }}">1</span>
-                {{ end }}
-                {{ end }}
-                {{ else }}
-                <span class="pod-count pod-unknown">?</span>
+                <span class="metric-no-data">Not configured</span>
                 {{ end }}
             </div>
         </div>
 
-        <div class="metric-box health-box">
-            <div class="metric-label">health</div>
-            <div class="metric-value">
+        <!-- Health Check -->
+        <div class="metric-card health-card">
+            <div class="metric-card-label">
+                <span class="metric-icon">💚</span>
+                <span>Health</span>
+            </div>
+            <div class="metric-card-content">
                 {{ $healthMetric := index .MetricsByType "HealthCheck" }}
                 {{ if and $healthMetric $healthMetric.LatestValue }}
                 {{ $status := index $healthMetric.LatestValue.Value "status" }}
@@ -140,42 +130,37 @@
                 {{ $errorMsg := index $healthMetric.LatestValue.Value "error_message" }}
                 {{ $url := index $healthMetric.Configuration "health_check_url" }}
 
-                <div class="health-url-container">
-                    <div class="health-url">{{ $url }}</div>
-                    {{ if eq $status "up" }}
-                    <div class="health-status health-status-ok" title="HTTP {{ $statusCode }} - {{ $responseTime }}ms">
-                        <span class="health-icon">✓</span>
-                        <span class="health-text">healthy</span>
-                        <span class="health-time">{{ $responseTime }}ms</span>
-                    </div>
-                    {{ else }}
-                    <div class="health-status health-status-error"
-                        title="Failed{{ if $errorMsg }} - {{ $errorMsg }}{{ end }}">
-                        <span class="health-icon">✗</span>
-                        <span class="health-text">failed</span>
-                        {{ if $errorMsg }}<span class="health-error-msg">{{ $errorMsg }}</span>{{ end }}
-                    </div>
-                    {{ end }}
-                </div>
-                {{ else if and $healthMetric $healthMetric.Configuration }}
-                {{ $url := index $healthMetric.Configuration "health_check_url" }}
-                <div class="health-url-container">
-                    <div class="health-url">{{ $url }}</div>
-                    <div class="health-status health-status-unknown">
-                        <span class="health-icon">⏱</span>
-                        <span class="health-text">waiting for data...</span>
-                    </div>
+                {{ if eq $status "up" }}
+                <div class="status-badge status-ok" title="HTTP {{ $statusCode }} - {{ $responseTime }}ms">
+                    <span class="status-icon">✓</span>
+                    <span class="status-text">Healthy</span>
+                    <span class="status-time">{{ $responseTime }}ms</span>
                 </div>
                 {{ else }}
-                <div class="health-url">Not configured</div>
+                <div class="status-badge status-error" title="{{ $errorMsg }}">
+                    <span class="status-icon">✗</span>
+                    <span class="status-text">Failed</span>
+                </div>
+                {{ end }}
+                <div class="metric-detail">{{ $url }}</div>
+                {{ else if and $healthMetric $healthMetric.Configuration }}
+                <div class="status-badge status-unknown">
+                    <span class="status-icon">⏱</span>
+                    <span class="status-text">Waiting...</span>
+                </div>
+                {{ else }}
+                <span class="metric-no-data">Not configured</span>
                 {{ end }}
             </div>
         </div>
 
-        <!-- Certificate Metric -->
-        <div class="metric-box certificate-box">
-            <div class="metric-label">🔒 certificate</div>
-            <div class="metric-value">
+        <!-- Certificate -->
+        <div class="metric-card cert-card">
+            <div class="metric-card-label">
+                <span class="metric-icon">🔒</span>
+                <span>Certificate</span>
+            </div>
+            <div class="metric-card-content">
                 {{ $certMetric := index .MetricsByType "IngressCertificate" }}
                 {{ if and $certMetric $certMetric.LatestValue }}
                 {{ $status := index $certMetric.LatestValue.Value "certificate_status" }}
@@ -185,260 +170,272 @@
                 {{ $issuer := index $certMetric.LatestValue.Value "certificate_issuer" }}
                 {{ $error := index $certMetric.LatestValue.Value "certificate_error" }}
 
-                <div class="certificate-container">
-                    {{ if $domains }}
-                    <div class="certificate-domains">
-                        {{ range $domains }}
-                        <span class="domain-badge">{{ . }}</span>
-                        {{ end }}
-                    </div>
-                    {{ end }}
-
-                    {{ if eq $status "valid" }}
-                    <div class="certificate-status certificate-status-valid"
-                        title="Certificate valid - Expires: {{ $expiration }}{{ if $issuer }} - Issued by: {{ $issuer }}{{ end }}">
-                        <span class="certificate-icon">✓</span>
-                        <span class="certificate-text">Valid for {{ $daysToExpire }} days</span>
-                    </div>
-                    {{ else if eq $status "expiring_soon" }}
-                    <div class="certificate-status certificate-status-warning"
-                        title="Certificate expiring soon - Expires: {{ $expiration }}{{ if $issuer }} - Issued by: {{ $issuer }}{{ end }}">
-                        <span class="certificate-icon">⚠</span>
-                        <span class="certificate-text">Expires in {{ $daysToExpire }} days</span>
-                    </div>
-                    {{ else if eq $status "expired" }}
-                    <div class="certificate-status certificate-status-expired"
-                        title="Certificate expired on: {{ $expiration }}{{ if $issuer }} - Issued by: {{ $issuer }}{{ end }}">
-                        <span class="certificate-icon">✗</span>
-                        <span class="certificate-text">Expired {{ $daysToExpire }} days ago</span>
-                    </div>
-                    {{ else if eq $status "not_found" }}
-                    <div class="certificate-status certificate-status-error" title="{{ $error }}">
-                        <span class="certificate-icon">⚠</span>
-                        <span class="certificate-text">Not found</span>
-                    </div>
-                    {{ else }}
-                    <div class="certificate-status certificate-status-error" title="{{ $error }}">
-                        <span class="certificate-icon">✗</span>
-                        <span class="certificate-text">Error</span>
-                        {{ if $error }}<span class="certificate-error-msg">{{ $error }}</span>{{ end }}
-                    </div>
-                    {{ end }}
+                {{ if eq $status "valid" }}
+                <div class="status-badge status-ok"
+                    title="Expires: {{ $expiration }}{{ if $issuer }} - {{ $issuer }}{{ end }}">
+                    <span class="status-icon">✓</span>
+                    <span class="status-text">{{ $daysToExpire }} days</span>
                 </div>
-                {{ else if and $certMetric $certMetric.Configuration }}
-                {{ $ingressName := index $certMetric.Configuration "ingress_name" }}
-                <div class="certificate-container">
-                    <div class="certificate-ingress">{{ $ingressName }}</div>
-                    <div class="certificate-status certificate-status-unknown">
-                        <span class="certificate-icon">⏱</span>
-                        <span class="certificate-text">waiting for data...</span>
-                    </div>
+                {{ else if eq $status "expiring_soon" }}
+                <div class="status-badge status-warning"
+                    title="Expires: {{ $expiration }}{{ if $issuer }} - {{ $issuer }}{{ end }}">
+                    <span class="status-icon">⚠</span>
+                    <span class="status-text">{{ $daysToExpire }} days</span>
+                </div>
+                {{ else if eq $status "expired" }}
+                <div class="status-badge status-error" title="Expired: {{ $expiration }}">
+                    <span class="status-icon">✗</span>
+                    <span class="status-text">Expired</span>
                 </div>
                 {{ else }}
-                <div class="certificate-text">Not configured</div>
+                <div class="status-badge status-error" title="{{ $error }}">
+                    <span class="status-icon">⚠</span>
+                    <span class="status-text">{{ $status }}</span>
+                </div>
+                {{ end }}
+                {{ if $domains }}
+                <div class="metric-detail">{{ index $domains 0 }}</div>
+                {{ end }}
+                {{ else if and $certMetric $certMetric.Configuration }}
+                <div class="status-badge status-unknown">
+                    <span class="status-icon">⏱</span>
+                    <span class="status-text">Waiting...</span>
+                </div>
+                {{ else }}
+                <span class="metric-no-data">Not configured</span>
+                {{ end }}
+            </div>
+        </div>
+
+        <!-- Memory -->
+        <div class="metric-card resource-card">
+            <div class="metric-card-label">
+                <span class="metric-icon">💾</span>
+                <span>Memory</span>
+            </div>
+            <div class="metric-card-content">
+                {{ $memoryMetric := index .MetricsByType "PodMemoryUsage" }}
+                {{ if and $memoryMetric $memoryMetric.LatestValue }}
+                {{ $usage := index $memoryMetric.LatestValue.Value "memory_usage_bytes" }}
+                {{ $limit := index $memoryMetric.LatestValue.Value "memory_limit_bytes" }}
+                {{ $percent := index $memoryMetric.LatestValue.Value "memory_percent" }}
+                {{ $usageMB := div $usage 1048576.0 }}
+                {{ $limitMB := div $limit 1048576.0 }}
+
+                <div class="resource-bar-container" title="Memory: {{ printf " %.0f" $usageMB }}MB / {{ printf "%.0f"
+                    $limitMB }}MB">
+                    <div class="resource-bar">
+                        <div class="resource-bar-fill" style="width: {{ $percent }}%"></div>
+                    </div>
+                    <div class="resource-value">{{ printf "%.0f" $percent }}%</div>
+                </div>
+                <div class="metric-detail">{{ printf "%.0f" $usageMB }} / {{ printf "%.0f" $limitMB }} MB</div>
+                {{ else }}
+                <span class="metric-no-data">Not configured</span>
+                {{ end }}
+            </div>
+        </div>
+
+        <!-- CPU -->
+        <div class="metric-card resource-card">
+            <div class="metric-card-label">
+                <span class="metric-icon">⚡</span>
+                <span>CPU</span>
+            </div>
+            <div class="metric-card-content">
+                {{ $cpuMetric := index .MetricsByType "PodCpuUsage" }}
+                {{ if and $cpuMetric $cpuMetric.LatestValue }}
+                {{ $usage := index $cpuMetric.LatestValue.Value "cpu_usage_millicores" }}
+                {{ $limit := index $cpuMetric.LatestValue.Value "cpu_limit_millicores" }}
+                {{ $percent := index $cpuMetric.LatestValue.Value "cpu_percent" }}
+
+                <div class="resource-bar-container" title="CPU: {{ $usage }}m / {{ $limit }}m">
+                    <div class="resource-bar">
+                        <div class="resource-bar-fill" style="width: {{ $percent }}%"></div>
+                    </div>
+                    <div class="resource-value">{{ printf "%.1f" $percent }}%</div>
+                </div>
+                <div class="metric-detail">{{ $usage }} / {{ $limit }} m</div>
+                {{ else }}
+                <span class="metric-no-data">Not configured</span>
+                {{ end }}
+            </div>
+        </div>
+
+        <!-- Disk (PVC) -->
+        <div class="metric-card resource-card">
+            <div class="metric-card-label">
+                <span class="metric-icon">💿</span>
+                <span>Disk</span>
+            </div>
+            <div class="metric-card-content">
+                {{ $pvcMetric := index .MetricsByType "PvcUsage" }}
+                {{ if and $pvcMetric $pvcMetric.LatestValue }}
+                {{ $used := index $pvcMetric.LatestValue.Value "pvc_used_bytes" }}
+                {{ $capacity := index $pvcMetric.LatestValue.Value "pvc_capacity_bytes" }}
+                {{ $percent := index $pvcMetric.LatestValue.Value "pvc_percent" }}
+                {{ $usedGB := div $used 1073741824.0 }}
+                {{ $capacityGB := div $capacity 1073741824.0 }}
+
+                <div class="resource-bar-container" title="Disk: {{ printf " %.1f" $usedGB }}GB / {{ printf "%.1f"
+                    $capacityGB }}GB">
+                    <div class="resource-bar">
+                        <div class="resource-bar-fill" style="width: {{ $percent }}%"></div>
+                    </div>
+                    <div class="resource-value">{{ printf "%.0f" $percent }}%</div>
+                </div>
+                <div class="metric-detail">{{ printf "%.1f" $usedGB }} / {{ printf "%.1f" $capacityGB }} GB</div>
+                {{ else }}
+                <span class="metric-no-data">Not configured</span>
                 {{ end }}
             </div>
         </div>
     </div>
 
-    <!-- Connection Metrics Section -->
+    <!-- Connection Metrics (if any) -->
     {{ $redisMetric := index .MetricsByType "RedisConnection" }}
     {{ $postgresMetric := index .MetricsByType "PostgreSQLConnection" }}
     {{ $mongoMetric := index .MetricsByType "MongoDBConnection" }}
     {{ $mysqlMetric := index .MetricsByType "MySQLConnection" }}
     {{ $kongMetric := index .MetricsByType "KongConnection" }}
+
     {{ if or $redisMetric $postgresMetric $mongoMetric $mysqlMetric $kongMetric }}
     <div class="connections-section">
-        <div class="connections-label">database connections</div>
+        <div class="connections-header">
+            <span class="metric-icon">🔌</span>
+            <span>Connections</span>
+        </div>
         <div class="connections-grid">
             {{ if $redisMetric }}
-            <div class="connection-box">
-                <div class="connection-header">
-                    <div class="connection-icon redis-icon">🔴</div>
-                    <div class="connection-title">Redis</div>
-                </div>
-                {{ if and $redisMetric.LatestValue }}
-                {{ $status := index $redisMetric.LatestValue.Value "connection_status" }}
+            <div class="connection-card">
+                <div class="connection-label">Redis</div>
+                {{ if $redisMetric.LatestValue }}
+                {{ $connStatus := index $redisMetric.LatestValue.Value "connection_status" }}
                 {{ $connTime := index $redisMetric.LatestValue.Value "connection_time_ms" }}
-                {{ $version := index $redisMetric.LatestValue.Value "connection_version" }}
-                {{ $error := index $redisMetric.LatestValue.Value "connection_error" }}
-                {{ $host := index $redisMetric.Configuration "connection_host" }}
-                {{ $port := index $redisMetric.Configuration "connection_port" }}
-                <div class="connection-address">{{ $host }}:{{ printf "%.0f" $port }}</div>
-                {{ if eq $status "connected" }}
-                <div class="connection-status connection-ok" title="Connected - {{ $connTime }}ms">
-                    <span class="conn-icon">✓</span>
-                    <span class="conn-text">connected</span>
-                    <span class="conn-time">{{ printf "%.0f" $connTime }}ms</span>
+                {{ $connError := index $redisMetric.LatestValue.Value "connection_error" }}
+                {{ if eq $connStatus "connected" }}
+                <div class="connection-status status-ok" title="{{ $connTime }}ms">
+                    <span class="status-icon">✓</span>
+                    <span>Connected</span>
                 </div>
-                {{ if $version }}<div class="connection-version">{{ $version }}</div>{{ end }}
                 {{ else }}
-                <div class="connection-status connection-error" title="{{ $error }}">
-                    <span class="conn-icon">✗</span>
-                    <span class="conn-text">{{ $status }}</span>
+                <div class="connection-status status-error" title="{{ $connError }}">
+                    <span class="status-icon">✗</span>
+                    <span>{{ $connStatus }}</span>
                 </div>
-                {{ if $error }}<div class="connection-error">{{ $error }}</div>{{ end }}
                 {{ end }}
                 {{ else }}
-                <div class="connection-address">{{ index $redisMetric.Configuration "connection_host" }}</div>
-                <div class="connection-status connection-pending">
-                    <span class="conn-icon">⏱</span>
-                    <span class="conn-text">waiting...</span>
+                <div class="connection-status status-unknown">
+                    <span class="status-icon">⏱</span>
+                    <span>Waiting...</span>
                 </div>
                 {{ end }}
             </div>
             {{ end }}
 
             {{ if $postgresMetric }}
-            <div class="connection-box">
-                <div class="connection-header">
-                    <div class="connection-icon postgres-icon">🐘</div>
-                    <div class="connection-title">PostgreSQL</div>
-                </div>
-                {{ if and $postgresMetric.LatestValue }}
-                {{ $status := index $postgresMetric.LatestValue.Value "connection_status" }}
+            <div class="connection-card">
+                <div class="connection-label">PostgreSQL</div>
+                {{ if $postgresMetric.LatestValue }}
+                {{ $connStatus := index $postgresMetric.LatestValue.Value "connection_status" }}
                 {{ $connTime := index $postgresMetric.LatestValue.Value "connection_time_ms" }}
-                {{ $version := index $postgresMetric.LatestValue.Value "connection_version" }}
-                {{ $error := index $postgresMetric.LatestValue.Value "connection_error" }}
-                {{ $host := index $postgresMetric.Configuration "connection_host" }}
-                {{ $port := index $postgresMetric.Configuration "connection_port" }}
-                {{ $database := index $postgresMetric.Configuration "connection_database" }}
-                <div class="connection-address">{{ $host }}:{{ printf "%.0f" $port }}/{{ $database }}</div>
-                {{ if eq $status "connected" }}
-                <div class="connection-status connection-ok" title="Connected - {{ $connTime }}ms">
-                    <span class="conn-icon">✓</span>
-                    <span class="conn-text">connected</span>
-                    <span class="conn-time">{{ printf "%.0f" $connTime }}ms</span>
+                {{ $connError := index $postgresMetric.LatestValue.Value "connection_error" }}
+                {{ if eq $connStatus "connected" }}
+                <div class="connection-status status-ok" title="{{ $connTime }}ms">
+                    <span class="status-icon">✓</span>
+                    <span>Connected</span>
                 </div>
-                {{ if $version }}<div class="connection-version">{{ $version }}</div>{{ end }}
                 {{ else }}
-                <div class="connection-status connection-error" title="{{ $error }}">
-                    <span class="conn-icon">✗</span>
-                    <span class="conn-text">{{ $status }}</span>
+                <div class="connection-status status-error" title="{{ $connError }}">
+                    <span class="status-icon">✗</span>
+                    <span>{{ $connStatus }}</span>
                 </div>
-                {{ if $error }}<div class="connection-error">{{ $error }}</div>{{ end }}
                 {{ end }}
                 {{ else }}
-                <div class="connection-address">{{ index $postgresMetric.Configuration "connection_host" }}</div>
-                <div class="connection-status connection-pending">
-                    <span class="conn-icon">⏱</span>
-                    <span class="conn-text">waiting...</span>
+                <div class="connection-status status-unknown">
+                    <span class="status-icon">⏱</span>
+                    <span>Waiting...</span>
                 </div>
                 {{ end }}
             </div>
             {{ end }}
 
             {{ if $mongoMetric }}
-            <div class="connection-box">
-                <div class="connection-header">
-                    <div class="connection-icon mongo-icon">🍃</div>
-                    <div class="connection-title">MongoDB</div>
-                </div>
-                {{ if and $mongoMetric.LatestValue }}
-                {{ $status := index $mongoMetric.LatestValue.Value "connection_status" }}
+            <div class="connection-card">
+                <div class="connection-label">MongoDB</div>
+                {{ if $mongoMetric.LatestValue }}
+                {{ $connStatus := index $mongoMetric.LatestValue.Value "connection_status" }}
                 {{ $connTime := index $mongoMetric.LatestValue.Value "connection_time_ms" }}
-                {{ $version := index $mongoMetric.LatestValue.Value "connection_version" }}
-                {{ $error := index $mongoMetric.LatestValue.Value "connection_error" }}
-                {{ $host := index $mongoMetric.Configuration "connection_host" }}
-                {{ $port := index $mongoMetric.Configuration "connection_port" }}
-                {{ $database := index $mongoMetric.Configuration "connection_database" }}
-                <div class="connection-address">{{ $host }}:{{ printf "%.0f" $port }}/{{ $database }}</div>
-                {{ if eq $status "connected" }}
-                <div class="connection-status connection-ok" title="Connected - {{ $connTime }}ms">
-                    <span class="conn-icon">✓</span>
-                    <span class="conn-text">connected</span>
-                    <span class="conn-time">{{ printf "%.0f" $connTime }}ms</span>
+                {{ $connError := index $mongoMetric.LatestValue.Value "connection_error" }}
+                {{ if eq $connStatus "connected" }}
+                <div class="connection-status status-ok" title="{{ $connTime }}ms">
+                    <span class="status-icon">✓</span>
+                    <span>Connected</span>
                 </div>
-                {{ if $version }}<div class="connection-version">{{ $version }}</div>{{ end }}
                 {{ else }}
-                <div class="connection-status connection-error" title="{{ $error }}">
-                    <span class="conn-icon">✗</span>
-                    <span class="conn-text">{{ $status }}</span>
+                <div class="connection-status status-error" title="{{ $connError }}">
+                    <span class="status-icon">✗</span>
+                    <span>{{ $connStatus }}</span>
                 </div>
-                {{ if $error }}<div class="connection-error">{{ $error }}</div>{{ end }}
                 {{ end }}
                 {{ else }}
-                <div class="connection-address">{{ index $mongoMetric.Configuration "connection_host" }}</div>
-                <div class="connection-status connection-pending">
-                    <span class="conn-icon">⏱</span>
-                    <span class="conn-text">waiting...</span>
+                <div class="connection-status status-unknown">
+                    <span class="status-icon">⏱</span>
+                    <span>Waiting...</span>
                 </div>
                 {{ end }}
             </div>
             {{ end }}
 
             {{ if $mysqlMetric }}
-            <div class="connection-box">
-                <div class="connection-header">
-                    <div class="connection-icon mysql-icon">🐬</div>
-                    <div class="connection-title">MySQL</div>
-                </div>
-                {{ if and $mysqlMetric.LatestValue }}
-                {{ $status := index $mysqlMetric.LatestValue.Value "connection_status" }}
+            <div class="connection-card">
+                <div class="connection-label">MySQL</div>
+                {{ if $mysqlMetric.LatestValue }}
+                {{ $connStatus := index $mysqlMetric.LatestValue.Value "connection_status" }}
                 {{ $connTime := index $mysqlMetric.LatestValue.Value "connection_time_ms" }}
-                {{ $version := index $mysqlMetric.LatestValue.Value "connection_version" }}
-                {{ $error := index $mysqlMetric.LatestValue.Value "connection_error" }}
-                {{ $host := index $mysqlMetric.Configuration "connection_host" }}
-                {{ $port := index $mysqlMetric.Configuration "connection_port" }}
-                {{ $database := index $mysqlMetric.Configuration "connection_database" }}
-                <div class="connection-address">{{ $host }}:{{ printf "%.0f" $port }}/{{ $database }}</div>
-                {{ if eq $status "connected" }}
-                <div class="connection-status connection-ok" title="Connected - {{ $connTime }}ms">
-                    <span class="conn-icon">✓</span>
-                    <span class="conn-text">connected</span>
-                    <span class="conn-time">{{ printf "%.0f" $connTime }}ms</span>
+                {{ $connError := index $mysqlMetric.LatestValue.Value "connection_error" }}
+                {{ if eq $connStatus "connected" }}
+                <div class="connection-status status-ok" title="{{ $connTime }}ms">
+                    <span class="status-icon">✓</span>
+                    <span>Connected</span>
                 </div>
-                {{ if $version }}<div class="connection-version">{{ $version }}</div>{{ end }}
                 {{ else }}
-                <div class="connection-status connection-error" title="{{ $error }}">
-                    <span class="conn-icon">✗</span>
-                    <span class="conn-text">{{ $status }}</span>
+                <div class="connection-status status-error" title="{{ $connError }}">
+                    <span class="status-icon">✗</span>
+                    <span>{{ $connStatus }}</span>
                 </div>
-                {{ if $error }}<div class="connection-error">{{ $error }}</div>{{ end }}
                 {{ end }}
                 {{ else }}
-                <div class="connection-address">{{ index $mysqlMetric.Configuration "connection_host" }}</div>
-                <div class="connection-status connection-pending">
-                    <span class="conn-icon">⏱</span>
-                    <span class="conn-text">waiting...</span>
+                <div class="connection-status status-unknown">
+                    <span class="status-icon">⏱</span>
+                    <span>Waiting...</span>
                 </div>
                 {{ end }}
             </div>
             {{ end }}
 
             {{ if $kongMetric }}
-            <div class="connection-box">
-                <div class="connection-header">
-                    <div class="connection-icon kong-icon">🦍</div>
-                    <div class="connection-title">Kong</div>
-                </div>
-                {{ if and $kongMetric.LatestValue }}
-                {{ $status := index $kongMetric.LatestValue.Value "connection_status" }}
+            <div class="connection-card">
+                <div class="connection-label">Kong</div>
+                {{ if $kongMetric.LatestValue }}
+                {{ $connStatus := index $kongMetric.LatestValue.Value "connection_status" }}
                 {{ $connTime := index $kongMetric.LatestValue.Value "connection_time_ms" }}
-                {{ $version := index $kongMetric.LatestValue.Value "connection_version" }}
-                {{ $error := index $kongMetric.LatestValue.Value "connection_error" }}
-                {{ $host := index $kongMetric.Configuration "connection_host" }}
-                {{ $port := index $kongMetric.Configuration "connection_port" }}
-                <div class="connection-address">{{ $host }}:{{ printf "%.0f" $port }}</div>
-                {{ if eq $status "connected" }}
-                <div class="connection-status connection-ok" title="Connected - {{ $connTime }}ms">
-                    <span class="conn-icon">✓</span>
-                    <span class="conn-text">connected</span>
-                    <span class="conn-time">{{ printf "%.0f" $connTime }}ms</span>
+                {{ $connError := index $kongMetric.LatestValue.Value "connection_error" }}
+                {{ if eq $connStatus "connected" }}
+                <div class="connection-status status-ok" title="{{ $connTime }}ms">
+                    <span class="status-icon">✓</span>
+                    <span>Connected</span>
                 </div>
-                {{ if $version }}<div class="connection-version">{{ $version }}</div>{{ end }}
                 {{ else }}
-                <div class="connection-status connection-error" title="{{ $error }}">
-                    <span class="conn-icon">✗</span>
-                    <span class="conn-text">{{ $status }}</span>
+                <div class="connection-status status-error" title="{{ $connError }}">
+                    <span class="status-icon">✗</span>
+                    <span>{{ $connStatus }}</span>
                 </div>
-                {{ if $error }}<div class="connection-error">{{ $error }}</div>{{ end }}
                 {{ end }}
                 {{ else }}
-                <div class="connection-address">{{ index $kongMetric.Configuration "connection_host" }}</div>
-                <div class="connection-status connection-pending">
-                    <span class="conn-icon">⏱</span>
-                    <span class="conn-text">waiting...</span>
+                <div class="connection-status status-unknown">
+                    <span class="status-icon">⏱</span>
+                    <span>Waiting...</span>
                 </div>
                 {{ end }}
             </div>
@@ -446,58 +443,5 @@
         </div>
     </div>
     {{ end }}
-
-    <div class="side-metrics">
-        <div class="side-metric-item">
-            <div class="side-metric-label">mem</div>
-            {{ $memMetric := index .MetricsByType "PodMemoryUsage" }}
-            {{ if and $memMetric $memMetric.LatestValue }}
-            {{ $memPercent := index $memMetric.LatestValue.Value "memory_percent" }}
-            {{ $memUsage := index $memMetric.LatestValue.Value "memory_usage_bytes" }}
-            {{ $memLimit := index $memMetric.LatestValue.Value "memory_limit_bytes" }}
-            <div class="side-metric-bar" title="Memory: {{ div $memUsage 1048576 }}MB / {{ div $memLimit 1048576 }}MB">
-                <div class="bar-fill" style="width: {{ printf " %.0f" $memPercent }}%"></div>
-            </div>
-            <div class="side-metric-value" title="{{ div $memUsage 1048576 }}MB used">{{ printf "%.1f" $memPercent }}%
-            </div>
-            {{ else }}
-            <div class="side-metric-value">-</div>
-            {{ end }}
-        </div>
-
-        <div class="side-metric-item">
-            <div class="side-metric-label">cpu</div>
-            {{ $cpuMetric := index .MetricsByType "PodCpuUsage" }}
-            {{ if and $cpuMetric $cpuMetric.LatestValue }}
-            {{ $cpuPercent := index $cpuMetric.LatestValue.Value "cpu_percent" }}
-            {{ $cpuUsage := index $cpuMetric.LatestValue.Value "cpu_usage_millicores" }}
-            {{ $cpuLimit := index $cpuMetric.LatestValue.Value "cpu_limit_millicores" }}
-            <div class="side-metric-bar" title="CPU: {{ $cpuUsage }}m / {{ $cpuLimit }}m">
-                <div class="bar-fill" style="width: {{ printf " %.0f" $cpuPercent }}%"></div>
-            </div>
-            <div class="side-metric-value" title="{{ $cpuUsage }} millicores">{{ printf "%.1f" $cpuPercent }}%</div>
-            {{ else }}
-            <div class="side-metric-value">-</div>
-            {{ end }}
-        </div>
-
-        <div class="side-metric-item">
-            <div class="side-metric-label">disk</div>
-            {{ $pvcMetric := index .MetricsByType "PvcUsage" }}
-            {{ if and $pvcMetric $pvcMetric.LatestValue }}
-            {{ $pvcPercent := index $pvcMetric.LatestValue.Value "pvc_percent" }}
-            {{ $pvcUsed := index $pvcMetric.LatestValue.Value "pvc_used_bytes" }}
-            {{ $pvcCapacity := index $pvcMetric.LatestValue.Value "pvc_capacity_bytes" }}
-            <div class="side-metric-bar"
-                title="Disk: {{ div $pvcUsed 1073741824 }}GB / {{ div $pvcCapacity 1073741824 }}GB">
-                <div class="bar-fill" style="width: {{ printf " %.0f" $pvcPercent }}%"></div>
-            </div>
-            <div class="side-metric-value" title="{{ div $pvcUsed 1073741824 }}GB used">{{ printf "%.1f" $pvcPercent }}%
-            </div>
-            {{ else }}
-            <div class="side-metric-value" title="No PVC configured">-</div>
-            {{ end }}
-        </div>
-    </div>
 </div>
 {{ end }}

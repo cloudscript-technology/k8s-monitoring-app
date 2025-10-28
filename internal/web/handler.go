@@ -30,8 +30,15 @@ func NewHandler() (*Handler, error) {
 			}
 			return aFloat / bFloat
 		},
-		"add": func(a, b int) int {
-			return a + b
+		"add": func(a, b interface{}) float64 {
+			aFloat, _ := toFloat64(a)
+			bFloat, _ := toFloat64(b)
+			return aFloat + bFloat
+		},
+		"sub": func(a, b interface{}) float64 {
+			aFloat, _ := toFloat64(a)
+			bFloat, _ := toFloat64(b)
+			return aFloat - bFloat
 		},
 	}
 

@@ -41,10 +41,27 @@ func bindRoutes(s *core.HTTPServer) {
 		s.Api.GET("/", s.WrapHandler(webHandler.Dashboard))
 		s.Api.Static("/static", "web/static")
 
+		// Registration pages
+		s.Api.GET("/cadastros/projetos", s.WrapHandler(webHandler.RenderCadastroProjects))
+		s.Api.GET("/cadastros/aplicacoes", s.WrapHandler(webHandler.RenderCadastroApplications))
+		s.Api.GET("/cadastros/metricas", s.WrapHandler(webHandler.RenderCadastroMetrics))
+
 		// HTMX partial endpoints
 		apiUI := s.Api.Group("/api/ui")
 		apiUI.GET("/projects", s.WrapHandler(webHandler.GetProjects))
 		apiUI.GET("/applications/:id/metrics", s.WrapHandler(webHandler.GetApplicationMetrics))
+		apiUI.GET("/projects-list", s.WrapHandler(webHandler.GetProjectsList))
+		apiUI.GET("/applications-list", s.WrapHandler(webHandler.GetApplicationsList))
+		apiUI.GET("/metrics-list", s.WrapHandler(webHandler.GetMetricsList))
+		apiUI.GET("/projects-options", s.WrapHandler(webHandler.GetProjectsOptions))
+		apiUI.GET("/applications-options", s.WrapHandler(webHandler.GetApplicationsOptions))
+		apiUI.GET("/metric-types-options", s.WrapHandler(webHandler.GetMetricTypesOptions))
+		apiUI.GET("/metric-configuration-fields/:id", s.WrapHandler(webHandler.GetMetricConfigurationFields))
+		
+		// DELETE endpoints for UI
+		apiUI.DELETE("/metrics/:id", s.WrapHandler(webHandler.DeleteMetric))
+		apiUI.DELETE("/applications/:id", s.WrapHandler(webHandler.DeleteApplication))
+		apiUI.DELETE("/projects/:id", s.WrapHandler(webHandler.DeleteProject))
 	} else {
 		log.Warn(context.Background()).Msg("Web handler is nil, skipping web UI routes")
 	}

@@ -1,0 +1,14 @@
+{{ define "project-list-item" }}
+<div class="list-item">
+    <div class="list-item-content">
+        <h4>{{ .Name }}</h4>
+        <p>{{ .Description }}</p>
+        <small>ID: {{ .ID }}</small>
+    </div>
+    <div class="list-item-actions">
+        <button class="btn btn-danger btn-sm" onclick="deleteProject('{{ .ID }}')">
+            <i class="fas fa-trash"></i> Deletar
+        </button>
+    </div>
+</div>
+{{ end }}

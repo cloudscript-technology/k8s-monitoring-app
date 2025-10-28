@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ .Title }} - K8s Monitoring</title>
+    <title>Cadastro de Projetos - K8s Monitoring</title>
     <script src="https://unpkg.com/htmx.org@1.9.10"></script>
     <link rel="stylesheet" href="/static/css/style.css">
 </head>
@@ -26,7 +26,7 @@
                         </svg>
                     </button>
                     <div class="dropdown-menu" id="cadastrosDropdown">
-                        <a href="/cadastros/projetos" class="dropdown-item">Projetos</a>
+                        <a href="/cadastros/projetos" class="dropdown-item active">Projetos</a>
                         <a href="/cadastros/aplicacoes" class="dropdown-item">Aplicações</a>
                         <a href="/cadastros/metricas" class="dropdown-item">Métricas</a>
                     </div>
@@ -62,17 +62,41 @@
 
     <main class="main-content">
         <div class="container">
-            <div class="dashboard">
-                <div class="dashboard-header">
-                    <h2>Dashboard</h2>
-                    <div class="refresh-info">
-                        <span class="status-indicator"></span>
-                        Auto-refresh: 10s
-                    </div>
+            <div class="form-container">
+                <div class="form-header">
+                    <h2>Cadastro de Projetos</h2>
+                    <p>Crie um novo projeto para organizar suas aplicações</p>
                 </div>
 
-                <div class="projects-grid" hx-get="/api/ui/projects" hx-trigger="load, every 10s" hx-swap="innerHTML">
-                    <div class="loading">Loading projects...</div>
+                <div class="form-card">
+                    <form id="projectForm">
+                        <div class="form-group">
+                            <label for="name">Nome do Projeto *</label>
+                            <input type="text" id="name" name="name" required
+                                placeholder="Ex: Production, Development, Staging">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="description">Descrição</label>
+                            <textarea id="description" name="description" rows="3"
+                                placeholder="Descreva o propósito deste projeto..."></textarea>
+                        </div>
+
+                        <div class="form-actions">
+                            <button type="button" class="btn btn-secondary" onclick="resetForm()">Limpar</button>
+                            <button type="submit" class="btn btn-primary">Criar Projeto</button>
+                        </div>
+                    </form>
+
+                    <div id="result" class="result-container"></div>
+                </div>
+
+                <div class="projects-list">
+                    <h3>Projetos Existentes</h3>
+                    <div id="projectsList" hx-get="/api/ui/projects-list" hx-trigger="load, projectCreated from:body"
+                        hx-swap="innerHTML">
+                        <div class="loading">Carregando projetos...</div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -103,55 +127,12 @@
             }
         }
 
-        // Delete functions with confirmation
-        function deleteMetric(id) {
-            if (confirm('Tem certeza que deseja deletar esta métrica? Esta ação não pode ser desfeita.')) {
-                fetch(`/api/ui/metrics/${id}`, {
-                    method: 'DELETE',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    }
-                })
-                    .then(response => {
-                        if (response.ok) {
-                            // Refresh the metrics list
-                            htmx.trigger('#metricsList', 'load');
-                            alert('Métrica deletada com sucesso!');
-                        } else {
-                            alert('Erro ao deletar métrica. Tente novamente.');
-                        }
-                    })
-                    .catch(error => {
-                        console.error('Error:', error);
-                        alert('Erro ao deletar métrica. Tente novamente.');
-                    });
-            }
+        function resetForm() {
+            document.getElementById('projectForm').reset();
+            document.getElementById('result').innerHTML = '';
         }
 
-        function deleteApplication(id) {
-            if (confirm('Tem certeza que deseja deletar esta aplicação? Esta ação não pode ser desfeita e todas as métricas associadas também serão removidas.')) {
-                fetch(`/api/ui/applications/${id}`, {
-                    method: 'DELETE',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    }
-                })
-                    .then(response => {
-                        if (response.ok) {
-                            // Refresh the applications list
-                            htmx.trigger('#applications-list', 'refresh');
-                            alert('Aplicação deletada com sucesso!');
-                        } else {
-                            alert('Erro ao deletar aplicação. Tente novamente.');
-                        }
-                    })
-                    .catch(error => {
-                        console.error('Error:', error);
-                        alert('Erro ao deletar aplicação. Tente novamente.');
-                    });
-            }
-        }
-
+        // Delete function for projects
         function deleteProject(id) {
             if (confirm('Tem certeza que deseja deletar este projeto? Esta ação não pode ser desfeita e todas as aplicações e métricas associadas também serão removidas.')) {
                 fetch(`/api/ui/projects/${id}`, {
@@ -163,7 +144,7 @@
                     .then(response => {
                         if (response.ok) {
                             // Refresh the projects list
-                            htmx.trigger('#projects-list', 'refresh');
+                            htmx.trigger('#projectsList', 'load');
                             alert('Projeto deletado com sucesso!');
                         } else {
                             alert('Erro ao deletar projeto. Tente novamente.');
@@ -175,6 +156,55 @@
                     });
             }
         }
+
+        // Form submission
+        document.getElementById('projectForm').addEventListener('submit', async function (e) {
+            e.preventDefault();
+
+            const formData = new FormData(this);
+            const data = {
+                name: formData.get('name'),
+                description: formData.get('description')
+            };
+
+            try {
+                const response = await fetch('/api/v1/projects', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(data)
+                });
+
+                const result = document.getElementById('result');
+
+                if (response.ok) {
+                    const responseData = await response.json();
+                    result.innerHTML = `
+                        <div class="alert alert-success">
+                            Projeto "${data.name}" criado com sucesso! ID: ${responseData.id || 'N/A'}
+                        </div>
+                    `;
+                    this.reset();
+                    // Refresh the projects list
+                    htmx.trigger('#projectsList', 'load');
+                } else {
+                    const errorData = await response.text();
+                    result.innerHTML = `
+                        <div class="alert alert-error">
+                            Erro ao criar projeto: ${errorData}
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                const result = document.getElementById('result');
+                result.innerHTML = `
+                    <div class="alert alert-error">
+                        Erro de conexão: ${error.message}
+                    </div>
+                `;
+            }
+        });
     </script>
 </body>
 

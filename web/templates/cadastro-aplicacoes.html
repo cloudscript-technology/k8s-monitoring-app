@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cadastro de Aplicações - K8s Monitoring</title>
+    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+
+<body>
+    <nav class="navbar">
+        <div class="container">
+            <div class="navbar-brand">
+                <h1>🚀 K8s Monitoring</h1>
+            </div>
+            <div class="navbar-menu">
+                <a href="/" class="nav-link">Dashboard</a>
+                <div class="dropdown">
+                    <button class="nav-link dropdown-toggle" onclick="toggleDropdown()">
+                        Cadastros
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <polyline points="6 9 12 15 18 9"></polyline>
+                        </svg>
+                    </button>
+                    <div class="dropdown-menu" id="cadastrosDropdown">
+                        <a href="/cadastros/projetos" class="dropdown-item">Projetos</a>
+                        <a href="/cadastros/aplicacoes" class="dropdown-item active">Aplicações</a>
+                        <a href="/cadastros/metricas" class="dropdown-item">Métricas</a>
+                    </div>
+                </div>
+                {{ if .UserEmail }}
+                <div class="user-info">
+                    <div class="user-avatar-container">
+                        {{ if .UserPicture }}
+                        <img src="{{ .UserPicture }}" alt="{{ .UserName }}" class="user-avatar"
+                            onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                        <div class="user-avatar-placeholder" style="display: none;">{{ firstChar .UserName }}</div>
+                        {{ else }}
+                        <div class="user-avatar-placeholder">{{ firstChar .UserName }}</div>
+                        {{ end }}
+                    </div>
+                    <div class="user-details">
+                        <span class="user-name">{{ .UserName }}</span>
+                        <span class="user-email">{{ .UserEmail }}</span>
+                    </div>
+                    <a href="/auth/logout" class="logout-btn" title="Logout">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                            <polyline points="16 17 21 12 16 7"></polyline>
+                            <line x1="21" y1="12" x2="9" y2="12"></line>
+                        </svg>
+                    </a>
+                </div>
+                {{ end }}
+            </div>
+        </div>
+    </nav>
+
+    <main class="main-content">
+        <div class="container">
+            <div class="form-container">
+                <div class="form-header">
+                    <h2>Cadastro de Aplicações</h2>
+                    <p>Registre uma nova aplicação para monitoramento</p>
+                </div>
+
+                <div class="form-card">
+                    <form id="applicationForm">
+                        <div class="form-group">
+                            <label for="project_id">Projeto:</label>
+                            <select id="project_id" name="project_id" required hx-get="/api/ui/projects-options"
+                                hx-trigger="load" hx-swap="innerHTML" hx-target="this">
+                                <option value="">Carregando projetos...</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="name">Nome da Aplicação:</label>
+                            <input type="text" id="name" name="name" required>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="description">Descrição:</label>
+                            <textarea id="description" name="description" rows="3"></textarea>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="namespace">Namespace:</label>
+                            <input type="text" id="namespace" name="namespace" required>
+                        </div>
+
+                        <div class="form-actions">
+                            <button type="submit" class="btn btn-primary">Criar Aplicação</button>
+                            <button type="button" class="btn btn-secondary" onclick="resetForm()">Limpar</button>
+                        </div>
+                    </form>
+
+                    <div id="result" class="result-container"></div>
+                </div>
+
+                <div class="applications-list">
+                    <h3>Aplicações Existentes</h3>
+
+                    <!-- Filtros -->
+                    <div class="form-card" style="margin-bottom: 20px;">
+                        <div class="form-header">
+                            <h3>Filtros</h3>
+                            <p>Filtre as aplicações por projeto ou nome</p>
+                        </div>
+
+                        <div style="display: flex; gap: 20px; align-items: end;">
+                            <div class="form-group" style="flex: 1; margin-bottom: 0;">
+                                <label for="projectFilter">Projeto:</label>
+                                <select id="projectFilter">
+                                    <option value="">Todos os projetos</option>
+                                </select>
+                            </div>
+                            <div class="form-group" style="flex: 1; margin-bottom: 0;">
+                                <label for="nameFilter">Nome da Aplicação:</label>
+                                <input type="text" id="nameFilter" placeholder="Digite o nome da aplicação...">
+                            </div>
+                            <div class="form-actions" style="margin-bottom: 0;">
+                                <button type="button" id="clearFilters" class="btn btn-secondary">
+                                    Limpar Filtros
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="applicationsList" hx-get="/api/ui/applications-list"
+                        hx-trigger="load, applicationCreated from:body, filterChanged from:body" hx-swap="innerHTML">
+                        <div class="loading">Carregando aplicações...</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer class="footer">
+        <div class="container">
+            <p>K8s Monitoring App - Real-time Kubernetes Monitoring</p>
+        </div>
+    </footer>
+
+    <script>
+        function toggleDropdown() {
+            const dropdown = document.getElementById('cadastrosDropdown');
+            dropdown.classList.toggle('show');
+        }
+
+        // Close dropdown when clicking outside
+        window.onclick = function (event) {
+            if (!event.target.matches('.dropdown-toggle') && !event.target.closest('.dropdown-toggle')) {
+                const dropdowns = document.getElementsByClassName('dropdown-menu');
+                for (let i = 0; i < dropdowns.length; i++) {
+                    const openDropdown = dropdowns[i];
+                    if (openDropdown.classList.contains('show')) {
+                        openDropdown.classList.remove('show');
+                    }
+                }
+            }
+        }
+
+        function resetForm() {
+            document.getElementById('applicationForm').reset();
+            document.getElementById('result').innerHTML = '';
+        }
+
+        // Form submission
+        document.getElementById('applicationForm').addEventListener('submit', async function (e) {
+            e.preventDefault();
+
+            const formData = new FormData(this);
+            const data = {
+                project_id: formData.get('project_id'),
+                name: formData.get('name'),
+                description: formData.get('description'),
+                namespace: formData.get('namespace')
+            };
+
+            try {
+                const response = await fetch('/api/v1/applications', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(data)
+                });
+
+                const result = document.getElementById('result');
+
+                if (response.ok) {
+                    const responseData = await response.json();
+                    result.innerHTML = `
+                        <div class="alert alert-success">
+                            Aplicação "${data.name}" criada com sucesso! ID: ${responseData.id || 'N/A'}
+                        </div>
+                    `;
+                    this.reset();
+                    // Refresh the applications list
+                    htmx.trigger('#applicationsList', 'applicationCreated');
+                } else {
+                    const errorData = await response.text();
+                    result.innerHTML = `
+                        <div class="alert alert-error">
+                            Erro ao criar aplicação: ${errorData}
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                const result = document.getElementById('result');
+                result.innerHTML = `
+                    <div class="alert alert-error">
+                        Erro de conexão: ${error.message}
+                    </div>
+                `;
+            }
+        });
+
+        // Função para carregar projetos no filtro
+        async function loadProjectsFilter() {
+            try {
+                const response = await fetch('/api/ui/projects-options');
+                if (response.ok) {
+                    const htmlContent = await response.text();
+                    const projectFilter = document.getElementById('projectFilter');
+
+                    // Limpar opções existentes e adicionar "Todos os projetos"
+                    projectFilter.innerHTML = '<option value="">Todos os projetos</option>' + htmlContent;
+                }
+            } catch (error) {
+                console.error('Erro ao carregar projetos:', error);
+            }
+        }
+
+        // Função para aplicar filtros
+        function applyFilters() {
+            console.log('applyFilters chamada');
+            const projectId = document.getElementById('projectFilter').value;
+            const nameFilter = document.getElementById('nameFilter').value;
+
+            console.log('Project ID:', projectId);
+            console.log('Name Filter:', nameFilter);
+
+            let url = '/api/ui/applications-list';
+            const params = new URLSearchParams();
+
+            if (projectId) {
+                params.append('project_id', projectId);
+            }
+
+            if (nameFilter.trim()) {
+                params.append('name', nameFilter.trim());
+            }
+
+            if (params.toString()) {
+                url += '?' + params.toString();
+            }
+
+            console.log('URL final:', url);
+
+            // Fazer a requisição diretamente e atualizar o conteúdo
+            const applicationsList = document.getElementById('applicationsList');
+
+            fetch(url, {
+                headers: {
+                    'HX-Request': 'true'
+                }
+            })
+                .then(response => response.text())
+                .then(html => {
+                    applicationsList.innerHTML = html;
+                })
+                .catch(error => {
+                    console.error('Erro ao aplicar filtros:', error);
+                    applicationsList.innerHTML = '<div class="error">Erro ao carregar aplicações</div>';
+                });
+        }
+
+        // Função para limpar filtros
+        function clearFilters() {
+            document.getElementById('projectFilter').value = '';
+            document.getElementById('nameFilter').value = '';
+            applyFilters();
+        }
+
+        // Event listeners para os filtros
+        document.addEventListener('DOMContentLoaded', function () {
+            // Carregar projetos no filtro
+            loadProjectsFilter();
+
+            // Event listeners para filtros
+            document.getElementById('projectFilter').addEventListener('change', applyFilters);
+            document.getElementById('nameFilter').addEventListener('input', debounce(applyFilters, 500));
+            document.getElementById('clearFilters').addEventListener('click', clearFilters);
+        });
+
+        // Função debounce para evitar muitas requisições
+        function debounce(func, wait) {
+            let timeout;
+            return function executedFunction(...args) {
+                const later = () => {
+                    clearTimeout(timeout);
+                    func(...args);
+                };
+                clearTimeout(timeout);
+                timeout = setTimeout(later, wait);
+            };
+        }
+
+        function deleteApplication(id) {
+            if (confirm('Tem certeza que deseja deletar esta aplicação?')) {
+                fetch(`/api/ui/applications/${id}`, {
+                    method: 'DELETE'
+                })
+                    .then(response => {
+                        if (response.ok) {
+                            // Refresh the applications list
+                            htmx.trigger('#applicationsList', 'load');
+                            alert('Aplicação deletada com sucesso!');
+                        } else {
+                            alert('Erro ao deletar aplicação');
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        alert('Erro ao deletar aplicação');
+                    });
+            }
+        }
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cadastro de Métricas - K8s Monitoring</title>
+    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+
+<body>
+    <nav class="navbar">
+        <div class="container">
+            <div class="navbar-brand">
+                <h1>🚀 K8s Monitoring</h1>
+            </div>
+            <div class="navbar-menu">
+                <a href="/" class="nav-link">Dashboard</a>
+                <div class="dropdown">
+                    <button class="nav-link dropdown-toggle" onclick="toggleDropdown()">
+                        Cadastros
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="6 9 12 15 18 9"></polyline>
+                        </svg>
+                    </button>
+                    <div class="dropdown-menu" id="cadastrosDropdown">
+                        <a href="/cadastros/projetos" class="dropdown-item">Projetos</a>
+                        <a href="/cadastros/aplicacoes" class="dropdown-item">Aplicações</a>
+                        <a href="/cadastros/metricas" class="dropdown-item active">Métricas</a>
+                    </div>
+                </div>
+                {{ if .UserEmail }}
+                <div class="user-info">
+                    <div class="user-avatar-container">
+                        {{ if .UserPicture }}
+                        <img src="{{ .UserPicture }}" alt="{{ .UserName }}" class="user-avatar"
+                            onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                        <div class="user-avatar-placeholder" style="display: none;">{{ firstChar .UserName }}</div>
+                        {{ else }}
+                        <div class="user-avatar-placeholder">{{ firstChar .UserName }}</div>
+                        {{ end }}
+                    </div>
+                    <div class="user-details">
+                        <span class="user-name">{{ .UserName }}</span>
+                        <span class="user-email">{{ .UserEmail }}</span>
+                    </div>
+                    <a href="/auth/logout" class="logout-btn" title="Logout">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                            <polyline points="16 17 21 12 16 7"></polyline>
+                            <line x1="21" y1="12" x2="9" y2="12"></line>
+                        </svg>
+                    </a>
+                </div>
+                {{ end }}
+            </div>
+        </div>
+    </nav>
+
+    <main class="main-content">
+        <div class="container">
+            <div class="form-container">
+                <div class="form-header">
+                    <h2>Cadastro de Métricas</h2>
+                    <p>Configure métricas de monitoramento para suas aplicações</p>
+                </div>
+
+                <div class="form-card">
+                    <form id="metricForm">
+                        <div class="form-group">
+                            <label for="application_id">Aplicação:</label>
+                            <select id="application_id" name="application_id" required 
+                                    hx-get="/api/ui/applications-options" 
+                                    hx-trigger="load" 
+                                    hx-swap="innerHTML"
+                                    hx-target="this">
+                                <option value="">Carregando aplicações...</option>
+                            </select>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="metric_type_id">Tipo de Métrica:</label>
+                            <select id="metric_type_id" name="metric_type_id" required 
+                                    hx-get="/api/ui/metric-types-options" 
+                                    hx-trigger="load" 
+                                    hx-swap="innerHTML"
+                                    hx-target="this"
+                                    onchange="loadConfigurationFields(this.value)">
+                                <option value="">Carregando tipos de métrica...</option>
+                            </select>
+                        </div>
+                        
+                        <div id="configuration-fields" class="configuration-section">
+                            <h4>Configuração da Métrica</h4>
+                            <div id="dynamic-fields">
+                                <p class="text-muted">Selecione um tipo de métrica para ver os campos de configuração.</p>
+                            </div>
+                        </div>
+                        
+                        <div class="form-actions">
+                            <button type="submit" class="btn btn-primary">Criar Métrica</button>
+                            <button type="button" class="btn btn-secondary" onclick="resetForm()">Limpar</button>
+                        </div>
+                    </form>
+
+                    <div id="result" class="result-container"></div>
+                </div>
+
+                <div class="metrics-list">
+                    <h3>Métricas Existentes</h3>
+
+                    <!-- Filtros -->
+                    <div class="form-card" style="margin-bottom: 20px;">
+                        <div class="form-header">
+                            <h3>Filtros</h3>
+                            <p>Filtre as métricas por projeto, aplicação ou tipo de métrica</p>
+                        </div>
+                        
+                        <div style="display: flex; gap: 20px; align-items: end; flex-wrap: wrap;">
+                            <div class="form-group" style="flex: 1; margin-bottom: 0; min-width: 200px;">
+                                <label for="projectFilterMetrics">Projeto:</label>
+                                <select id="projectFilterMetrics">
+                                    <option value="">Todos os projetos</option>
+                                </select>
+                            </div>
+                            <div class="form-group" style="flex: 1; margin-bottom: 0; min-width: 200px;">
+                                <label for="applicationFilterMetrics">Aplicação:</label>
+                                <select id="applicationFilterMetrics">
+                                    <option value="">Todas as aplicações</option>
+                                </select>
+                            </div>
+                            <div class="form-group" style="flex: 1; margin-bottom: 0; min-width: 200px;">
+                                <label for="metricTypeFilterMetrics">Tipo de Métrica:</label>
+                                <select id="metricTypeFilterMetrics">
+                                    <option value="">Todos os tipos</option>
+                                </select>
+                            </div>
+                            <div class="form-actions" style="margin-bottom: 0;">
+                                <button type="button" id="clearFiltersMetrics" class="btn btn-secondary">
+                                    Limpar Filtros
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="metricsList" hx-get="/api/ui/metrics-list" hx-trigger="load, metricCreated from:body, filterChanged from:body" 
+                         hx-swap="innerHTML">
+                        <div class="loading">Carregando métricas...</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer class="footer">
+        <div class="container">
+            <p>K8s Monitoring App - Real-time Kubernetes Monitoring</p>
+        </div>
+    </footer>
+
+    <script>
+        function toggleDropdown() {
+            const dropdown = document.getElementById('cadastrosDropdown');
+            dropdown.classList.toggle('show');
+        }
+
+        // Close dropdown when clicking outside
+        window.onclick = function(event) {
+            if (!event.target.matches('.dropdown-toggle') && !event.target.closest('.dropdown-toggle')) {
+                const dropdowns = document.getElementsByClassName('dropdown-menu');
+                for (let i = 0; i < dropdowns.length; i++) {
+                    const openDropdown = dropdowns[i];
+                    if (openDropdown.classList.contains('show')) {
+                        openDropdown.classList.remove('show');
+                    }
+                }
+            }
+        }
+
+        function resetForm() {
+            document.getElementById('metricForm').reset();
+            document.getElementById('result').innerHTML = '';
+            document.getElementById('dynamic-fields').innerHTML = '<p class="text-muted">Selecione um tipo de métrica para ver os campos de configuração.</p>';
+        }
+
+        // Function to load configuration fields based on metric type
+        async function loadConfigurationFields(metricTypeId) {
+            const dynamicFields = document.getElementById('dynamic-fields');
+            
+            if (!metricTypeId) {
+                dynamicFields.innerHTML = '<p class="text-muted">Selecione um tipo de métrica para ver os campos de configuração.</p>';
+                return;
+            }
+            
+            try {
+                dynamicFields.innerHTML = '<p class="text-muted">Carregando campos de configuração...</p>';
+                
+                const response = await fetch(`/api/ui/metric-configuration-fields/${metricTypeId}`);
+                
+                if (response.ok) {
+                    const html = await response.text();
+                    dynamicFields.innerHTML = html;
+                } else {
+                    dynamicFields.innerHTML = '<p class="text-error">Erro ao carregar campos de configuração.</p>';
+                }
+            } catch (error) {
+                console.error('Erro ao carregar campos de configuração:', error);
+                dynamicFields.innerHTML = '<p class="text-error">Erro ao carregar campos de configuração.</p>';
+            }
+        }
+
+        // Form submission
+        document.getElementById('metricForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const formData = new FormData(this);
+            
+            // Build configuration object from dynamic fields
+            const configuration = {};
+            const dynamicFields = document.querySelectorAll('#dynamic-fields input, #dynamic-fields select');
+            dynamicFields.forEach(field => {
+                if (field.value) {
+                    configuration[field.name] = field.value;
+                }
+            });
+            
+            const data = {
+                application_id: formData.get('application_id'),
+                metric_type_id: formData.get('metric_type_id'),
+                configuration: configuration
+            };
+            
+            try {
+                const response = await fetch('/api/v1/application-metrics', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(data)
+                });
+                
+                const result = document.getElementById('result');
+                
+                if (response.ok) {
+                     const responseData = await response.json();
+                     result.innerHTML = `
+                         <div class="alert alert-success">
+                             Métrica criada com sucesso! ID: ${responseData.id || 'N/A'}
+                         </div>
+                     `;
+                     this.reset();
+                     document.getElementById('dynamic-fields').innerHTML = '';
+                     // Refresh the metrics list
+                     const metricsList = document.getElementById('metrics-list');
+                     if (metricsList && typeof htmx !== 'undefined') {
+                         htmx.trigger(metricsList, 'refresh');
+                     }
+                } else {
+                    const errorData = await response.text();
+                    result.innerHTML = `
+                        <div class="alert alert-error">
+                            Erro ao criar métrica: ${errorData}
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                const result = document.getElementById('result');
+                result.innerHTML = `
+                    <div class="alert alert-error">
+                        Erro de conexão: ${error.message}
+                    </div>
+                `;
+            }
+        });
+
+        // Handle form submission to build configuration JSON
+        document.getElementById('metricForm').addEventListener('submit', function(e) {
+            const configFields = document.querySelectorAll('#configuration-fields input, #configuration-fields select, #configuration-fields textarea');
+            const configuration = {};
+            
+            configFields.forEach(field => {
+                if (field.name && field.value) {
+                    // Convert numeric values
+                    if (field.type === 'number') {
+                        configuration[field.name] = parseInt(field.value) || parseFloat(field.value);
+                    } else {
+                        configuration[field.name] = field.value;
+                    }
+                }
+            });
+
+            // Add configuration as hidden field
+            let configInput = document.getElementById('configuration');
+            if (!configInput) {
+                configInput = document.createElement('input');
+                configInput.type = 'hidden';
+                configInput.name = 'configuration';
+                configInput.id = 'configuration';
+                this.appendChild(configInput);
+            }
+            configInput.value = JSON.stringify(configuration);
+        });
+
+        // Dropdown toggle function
+        function toggleDropdown() {
+            const dropdown = document.getElementById('cadastrosDropdown');
+            dropdown.classList.toggle('show');
+
+            // Close dropdown when clicking outside
+            document.addEventListener('click', function(event) {
+                const dropdownContainer = event.target.closest('.dropdown');
+                if (!dropdownContainer) {
+                    const openDropdown = document.querySelector('.dropdown-menu.show');
+                    if (openDropdown) {
+                        openDropdown.classList.remove('show');
+                    }
+                }
+            });
+        }
+
+        // Delete function for metrics
+        function deleteMetric(id) {
+            if (confirm('Tem certeza que deseja deletar esta métrica? Esta ação não pode ser desfeita.')) {
+                fetch(`/api/ui/metrics/${id}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    }
+                })
+                    .then(response => {
+                        if (response.ok) {
+                            // Refresh the metrics list
+                            htmx.trigger('#metricsList', 'load');
+                            alert('Métrica deletada com sucesso!');
+                        } else {
+                            alert('Erro ao deletar métrica. Tente novamente.');
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        alert('Erro ao deletar métrica. Tente novamente.');
+                    });
+            }
+        }
+
+        // Load filter options on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            loadProjectOptions();
+            loadApplicationOptions();
+            loadMetricTypeOptions();
+        });
+
+        // Load project options for filter
+        function loadProjectOptions() {
+            fetch('/api/ui/projects-options', {
+                headers: {
+                    'HX-Request': 'true'
+                }
+            })
+            .then(response => response.text())
+            .then(html => {
+                document.getElementById('projectFilterMetrics').innerHTML = 
+                    '<option value="">Todos os projetos</option>' + html;
+            })
+            .catch(error => {
+                console.error('Error loading project options:', error);
+            });
+        }
+
+        // Load application options for filter
+        function loadApplicationOptions(projectId = '') {
+            let url = '/api/ui/applications-options';
+            if (projectId) {
+                url += `?project_id=${projectId}`;
+            }
+            
+            fetch(url, {
+                headers: {
+                    'HX-Request': 'true'
+                }
+            })
+            .then(response => response.text())
+            .then(html => {
+                document.getElementById('applicationFilterMetrics').innerHTML = 
+                    '<option value="">Todas as aplicações</option>' + html;
+            })
+            .catch(error => {
+                console.error('Error loading application options:', error);
+            });
+        }
+
+        // Load metric type options for filter
+        function loadMetricTypeOptions() {
+            fetch('/api/ui/metric-types-options', {
+                headers: {
+                    'HX-Request': 'true'
+                }
+            })
+            .then(response => response.text())
+            .then(html => {
+                document.getElementById('metricTypeFilterMetrics').innerHTML = 
+                    '<option value="">Todos os tipos</option>' + html;
+            })
+            .catch(error => {
+                console.error('Error loading metric type options:', error);
+            });
+        }
+
+        // Apply filters function
+        function applyFilters() {
+            const projectId = document.getElementById('projectFilterMetrics').value;
+            const applicationId = document.getElementById('applicationFilterMetrics').value;
+            const metricTypeId = document.getElementById('metricTypeFilterMetrics').value;
+
+            console.log('Applying filters:', { projectId, applicationId, metricTypeId });
+
+            // Build URL with filter parameters
+            let url = '/api/ui/metrics-list';
+            const params = new URLSearchParams();
+            
+            if (projectId) params.append('project_id', projectId);
+            if (applicationId) params.append('application_id', applicationId);
+            if (metricTypeId) params.append('metric_type_id', metricTypeId);
+            
+            if (params.toString()) {
+                url += '?' + params.toString();
+            }
+
+            console.log('Filter URL:', url);
+
+            // Make request and update content
+            fetch(url, {
+                headers: {
+                    'HX-Request': 'true'
+                }
+            })
+            .then(response => response.text())
+            .then(html => {
+                document.getElementById('metricsList').innerHTML = html;
+            })
+            .catch(error => {
+                console.error('Error applying filters:', error);
+                document.getElementById('metricsList').innerHTML = 
+                    '<div class="alert alert-error">Erro ao aplicar filtros</div>';
+            });
+        }
+
+        // Clear filters function
+        function clearFilters() {
+            document.getElementById('projectFilterMetrics').value = '';
+            document.getElementById('applicationFilterMetrics').value = '';
+            document.getElementById('metricTypeFilterMetrics').value = '';
+            // Reload all applications when clearing filters
+            loadApplicationOptions();
+            applyFilters();
+        }
+
+        // Add event listeners for filter changes
+        document.addEventListener('DOMContentLoaded', function() {
+            // When project changes, reload applications for that project
+            document.getElementById('projectFilterMetrics').addEventListener('change', function() {
+                const projectId = this.value;
+                // Reset application filter
+                document.getElementById('applicationFilterMetrics').value = '';
+                // Load applications for selected project
+                loadApplicationOptions(projectId);
+                // Apply filters
+                applyFilters();
+            });
+            
+            document.getElementById('applicationFilterMetrics').addEventListener('change', applyFilters);
+            document.getElementById('metricTypeFilterMetrics').addEventListener('change', applyFilters);
+            document.getElementById('clearFiltersMetrics').addEventListener('click', clearFilters);
+        });
+    </script>
+</body>
+
+</html>

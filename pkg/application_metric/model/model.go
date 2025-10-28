@@ -61,7 +61,7 @@ type Configuration struct {
 type ApplicationMetric struct {
 	ID            string          `json:"id,omitempty"`
 	ApplicationID string          `json:"application_id" validate:"required"`
-	TypeID        string          `json:"type_id" validate:"required"`
+	TypeID        string          `json:"metric_type_id" validate:"required"`
 	Configuration json.RawMessage `json:"configuration" validate:"required"`
 	CreatedAt     time.Time       `json:"created_at,omitempty"`
 	UpdatedAt     time.Time       `json:"updated_at,omitempty"`

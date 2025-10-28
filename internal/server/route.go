@@ -1,25 +1,23 @@
 package server
 
 import (
-	"context"
-
 	"k8s-monitoring-app/internal/auth"
 	"k8s-monitoring-app/internal/core"
 	model "k8s-monitoring-app/internal/server/model"
 	"k8s-monitoring-app/internal/web"
 
-	"gitlab.cloudscript.com.br/general/go-instrumentation.git/log"
+	"github.com/rs/zerolog/log"
 )
 
 func bindRoutes(s *core.HTTPServer) {
-	log.Info(context.Background()).Msg("Binding routes")
+	log.Info().Msg("Binding routes")
 
 	// Web UI Handler
 	webHandler, err := web.NewHandler()
 	if err != nil {
-		log.Error(context.Background(), err).Msg("Failed to initialize web handler")
+		log.Error().Err(err).Msg("Failed to initialize web handler")
 	} else {
-		log.Info(context.Background()).Msg("Web handler initialized successfully")
+		log.Info().Msg("Web handler initialized successfully")
 	}
 
 	// Health check (no auth required)
@@ -37,7 +35,7 @@ func bindRoutes(s *core.HTTPServer) {
 
 	// Web UI routes
 	if webHandler != nil {
-		log.Info(context.Background()).Msg("Binding web UI routes")
+		log.Info().Msg("Binding web UI routes")
 		s.Api.GET("/", s.WrapHandler(webHandler.Dashboard))
 		s.Api.Static("/static", "web/static")
 
@@ -57,13 +55,13 @@ func bindRoutes(s *core.HTTPServer) {
 		apiUI.GET("/applications-options", s.WrapHandler(webHandler.GetApplicationsOptions))
 		apiUI.GET("/metric-types-options", s.WrapHandler(webHandler.GetMetricTypesOptions))
 		apiUI.GET("/metric-configuration-fields/:id", s.WrapHandler(webHandler.GetMetricConfigurationFields))
-		
+
 		// DELETE endpoints for UI
 		apiUI.DELETE("/metrics/:id", s.WrapHandler(webHandler.DeleteMetric))
 		apiUI.DELETE("/applications/:id", s.WrapHandler(webHandler.DeleteApplication))
 		apiUI.DELETE("/projects/:id", s.WrapHandler(webHandler.DeleteProject))
 	} else {
-		log.Warn(context.Background()).Msg("Web handler is nil, skipping web UI routes")
+		log.Warn().Msg("Web handler is nil, skipping web UI routes")
 	}
 
 	// REST API routes

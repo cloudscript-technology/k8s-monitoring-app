@@ -4,7 +4,7 @@ import (
 	"net/http"
 
 	"github.com/labstack/echo/v4"
-	"gitlab.cloudscript.com.br/general/go-instrumentation.git/log"
+	"github.com/rs/zerolog/log"
 )
 
 // AuthMiddleware validates that the user has a valid session
@@ -22,14 +22,14 @@ func AuthMiddleware() echo.MiddlewareFunc {
 			// Get session cookie
 			cookie, err := c.Cookie("session_id")
 			if err != nil {
-				log.Warn(ctx).Msg("No session cookie found")
+				log.Warn().Msg("No session cookie found")
 				return redirectToLogin(c)
 			}
 
 			// Validate session
 			session, err := GetSession(ctx, cookie.Value)
 			if err != nil {
-				log.Warn(ctx).Err(err).Str("session_id", cookie.Value).Msg("Invalid session")
+				log.Warn().Err(err).Str("session_id", cookie.Value).Msg("Invalid session")
 				return redirectToLogin(c)
 			}
 
@@ -41,7 +41,7 @@ func AuthMiddleware() echo.MiddlewareFunc {
 
 			// Extend session expiry on each request
 			if err := UpdateSessionExpiry(ctx, session.ID); err != nil {
-				log.Error(ctx, err).Str("session_id", session.ID).Msg("Failed to update session expiry")
+				log.Error().Str("session_id", session.ID).Msg("Failed to update session expiry")
 			}
 
 			return next(c)

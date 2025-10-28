@@ -6,7 +6,7 @@ import (
 	"k8s-monitoring-app/internal/env"
 
 	"github.com/labstack/echo/v4"
-	"gitlab.cloudscript.com.br/general/go-instrumentation.git/log"
+	"github.com/rs/zerolog/log"
 )
 
 func AdminAuthMiddleware() echo.MiddlewareFunc {
@@ -14,7 +14,7 @@ func AdminAuthMiddleware() echo.MiddlewareFunc {
 		return func(c echo.Context) error {
 			authHeader := c.Request().Header.Get("Authorization")
 			if authHeader == "" || authHeader != env.ADMIN_TOKEN {
-				log.Warn(c.Request().Context()).Msg("authorizing error: authorization header not found")
+				log.Warn().Msg("authorizing error: authorization header not found")
 				return c.String(http.StatusUnauthorized, "Not authorized")
 			}
 

@@ -1,0 +1,9 @@
+docs
+examples
+postman
+*.md
+env.example
+.env*
+.github
+*.sh
+docker-compose.*

@@ -1,7 +1,6 @@
 package server
 
 import (
-	"context"
 	"errors"
 	"os"
 	"path/filepath"
@@ -27,10 +26,7 @@ import (
 	_ "github.com/golang-migrate/migrate/v4/source/github"
 	"github.com/labstack/echo/v4"
 	_ "github.com/lib/pq"
-	"gitlab.cloudscript.com.br/general/go-instrumentation.git/apmtracer"
-	"gitlab.cloudscript.com.br/general/go-instrumentation.git/log"
-	"gitlab.cloudscript.com.br/general/go-instrumentation.git/middleware"
-	apmecho "go.elastic.co/apm/module/apmechov4/v2"
+	"github.com/rs/zerolog/log"
 	_ "go.elastic.co/apm/module/apmsql/pq"
 )
 
@@ -56,7 +52,7 @@ func findMigrationsPath() string {
 func NewHTTPServer(config *core.ApiServiceConfiguration) (*core.HTTPServer, error) {
 	// Initialize OAuth
 	if err := auth.InitOAuth(); err != nil {
-		log.Warn(context.Background()).Err(err).Msg("OAuth not configured - authentication will be disabled")
+		log.Warn().Err(err).Msg("OAuth not configured - authentication will be disabled")
 	}
 
 	d, err := core.ConnectDatabase()
@@ -104,10 +100,7 @@ func NewHTTPServer(config *core.ApiServiceConfiguration) (*core.HTTPServer, erro
 	}
 
 	e.Use(
-		middleware.LogMiddlewareRequestLogger(),
-		// middleware.ApmMiddlewareCaptureBody(),
-		apmecho.Middleware(apmecho.WithTracer(apmtracer.Tracer)),
-		auth.AuthMiddleware(), // Apply OAuth authentication middleware
+		auth.AuthMiddleware(),
 	)
 
 	bindRoutes(s)

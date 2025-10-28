@@ -18,7 +18,7 @@ import (
 	metricTypeModel "k8s-monitoring-app/pkg/metric_type/model"
 
 	"github.com/robfig/cron/v3"
-	"gitlab.cloudscript.com.br/general/go-instrumentation.git/log"
+	"github.com/rs/zerolog/log"
 	corev1 "k8s.io/api/core/v1"
 )
 
@@ -69,7 +69,7 @@ func (m *MonitoringService) Start() error {
 	}
 
 	m.cron.Start()
-	log.Info(context.Background()).
+	log.Info().
 		Int("collection_interval_seconds", collectionInterval).
 		Int("retention_days", env.METRICS_RETENTION_DAYS).
 		Str("cleanup_interval", cleanupInterval).
@@ -81,17 +81,17 @@ func (m *MonitoringService) Start() error {
 func (m *MonitoringService) Stop() {
 	ctx := m.cron.Stop()
 	<-ctx.Done()
-	log.Info(context.Background()).Msg("Monitoring service stopped")
+	log.Info().Msg("Monitoring service stopped")
 }
 
 func (m *MonitoringService) collectMetrics() {
 	ctx := context.Background()
-	log.Info(ctx).Msg("Starting metric collection")
+	log.Info().Msg("Starting metric collection")
 
 	// Get all application metrics
 	applicationMetrics, err := serverModel.ServerRepos.ApplicationMetric.List(ctx)
 	if err != nil {
-		log.Error(ctx, err).Msg("failed to list application metrics")
+		log.Error().Msg("failed to list application metrics")
 		return
 	}
 
@@ -99,27 +99,27 @@ func (m *MonitoringService) collectMetrics() {
 		// Get the application details
 		application, err := serverModel.ServerRepos.Application.Get(ctx, appMetric.ApplicationID)
 		if err != nil {
-			log.Error(ctx, err).Str("application_id", appMetric.ApplicationID).Msg("failed to get application")
+			log.Error().Str("application_id", appMetric.ApplicationID).Msg("failed to get application")
 			continue
 		}
 
 		// Get the metric type
 		metricType, err := serverModel.ServerRepos.MetricType.Get(ctx, appMetric.TypeID)
 		if err != nil {
-			log.Error(ctx, err).Str("metric_type_id", appMetric.TypeID).Msg("failed to get metric type")
+			log.Error().Str("metric_type_id", appMetric.TypeID).Msg("failed to get metric type")
 			continue
 		}
 
 		// Collect the metric based on type
 		if err := m.collectMetricByType(ctx, &application, &metricType, &appMetric); err != nil {
-			log.Error(ctx, err).
+			log.Error().
 				Str("application", application.Name).
 				Str("metric_type", metricType.Name).
 				Msg("failed to collect metric")
 		}
 	}
 
-	log.Info(ctx).Msg("Metric collection completed")
+	log.Info().Msg("Metric collection completed")
 }
 
 func (m *MonitoringService) collectMetricByType(
@@ -600,7 +600,7 @@ func (m *MonitoringService) cleanupOldMetrics() {
 
 	cutoffDate := time.Now().AddDate(0, 0, -retentionDays)
 
-	log.Info(ctx).
+	log.Info().
 		Int("retention_days", retentionDays).
 		Time("cutoff_date", cutoffDate).
 		Msg("Starting metrics cleanup")
@@ -609,12 +609,12 @@ func (m *MonitoringService) cleanupOldMetrics() {
 	query := `DELETE FROM application_metric_values WHERE created_at < $1`
 	result, err := m.db.ExecContext(ctx, query, cutoffDate)
 	if err != nil {
-		log.Error(ctx, err).Msg("Failed to cleanup old metrics")
+		log.Error().Msg("Failed to cleanup old metrics")
 		return
 	}
 
 	rowsAffected, _ := result.RowsAffected()
-	log.Info(ctx).
+	log.Info().
 		Int64("deleted_records", rowsAffected).
 		Int("retention_days", retentionDays).
 		Msg("Metrics cleanup completed")

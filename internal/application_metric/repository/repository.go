@@ -7,7 +7,7 @@ import (
 
 	applicationMetricModel "k8s-monitoring-app/pkg/application_metric/model"
 
-	"gitlab.cloudscript.com.br/general/go-instrumentation.git/log"
+	"github.com/rs/zerolog/log"
 )
 
 type Repository interface {
@@ -154,7 +154,7 @@ func (repo *repository) Update(ctx context.Context, applicationMetric *applicati
 		params = append(params, applicationMetric.Configuration)
 	}
 	if len(params) == 0 {
-		log.Warn(ctx).Msg("no fields to update")
+		log.Warn().Msg("no fields to update")
 		return nil
 	}
 
@@ -199,7 +199,7 @@ func (repo *repository) Delete(ctx context.Context, id string) error {
 	// Log how many values were deleted
 	valuesDeleted, _ := valuesResult.RowsAffected()
 	if valuesDeleted > 0 {
-		log.Info(ctx).
+		log.Info().
 			Str("metric_id", id).
 			Int64("values_deleted", valuesDeleted).
 			Msg("deleted metric values before deleting metric")

@@ -8,11 +8,11 @@ import (
 	applicationMetricModel "k8s-monitoring-app/pkg/application_metric/model"
 	applicationMetricValueModel "k8s-monitoring-app/pkg/application_metric_value/model"
 
+	"github.com/rs/zerolog/log"
 	"github.com/segmentio/kafka-go"
 	"github.com/segmentio/kafka-go/sasl"
 	"github.com/segmentio/kafka-go/sasl/plain"
 	"github.com/segmentio/kafka-go/sasl/scram"
-	"gitlab.cloudscript.com.br/general/go-instrumentation.git/log"
 )
 
 // CollectConsumerLag collects Kafka consumer lag information
@@ -27,7 +27,7 @@ func CollectConsumerLag(ctx context.Context, config *applicationMetricModel.Conf
 	// Setup Kafka client configuration
 	dialer, err := createDialer(config)
 	if err != nil {
-		log.Error(ctx, err).Msg("failed to create Kafka dialer")
+		log.Error().Msg("failed to create Kafka dialer")
 		return applicationMetricValueModel.MetricValue{
 			KafkaLagStatus: "error",
 			KafkaError:     fmt.Sprintf("failed to create Kafka dialer: %v", err),
@@ -49,7 +49,7 @@ func CollectConsumerLag(ctx context.Context, config *applicationMetricModel.Conf
 		// Get all topics for the consumer group
 		conn, err := dialer.DialContext(ctx, "tcp", config.KafkaBootstrapServers)
 		if err != nil {
-			log.Error(ctx, err).Msg("failed to connect to Kafka")
+			log.Error().Msg("failed to connect to Kafka")
 			return applicationMetricValueModel.MetricValue{
 				KafkaLagStatus: "error",
 				KafkaError:     fmt.Sprintf("failed to connect to Kafka: %v", err),
@@ -59,7 +59,7 @@ func CollectConsumerLag(ctx context.Context, config *applicationMetricModel.Conf
 
 		partitions, err := conn.ReadPartitions()
 		if err != nil {
-			log.Error(ctx, err).Msg("failed to read partitions")
+			log.Error().Msg("failed to read partitions")
 			return applicationMetricValueModel.MetricValue{
 				KafkaLagStatus: "error",
 				KafkaError:     fmt.Sprintf("failed to read partitions: %v", err),
@@ -83,7 +83,7 @@ func CollectConsumerLag(ctx context.Context, config *applicationMetricModel.Conf
 	for _, topic := range topicsToMonitor {
 		topicLag, err := collectTopicLag(ctx, client, config, topic)
 		if err != nil {
-			log.Error(ctx, err).
+			log.Error().
 				Str("topic", topic).
 				Msg("failed to collect lag for topic")
 			continue

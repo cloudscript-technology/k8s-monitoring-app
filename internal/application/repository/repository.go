@@ -7,7 +7,7 @@ import (
 
 	applicationModel "k8s-monitoring-app/pkg/application/model"
 
-	"gitlab.cloudscript.com.br/general/go-instrumentation.git/log"
+	"github.com/rs/zerolog/log"
 )
 
 type Repository interface {
@@ -162,7 +162,7 @@ func (repo *repository) Update(ctx context.Context, application *applicationMode
 		params = append(params, application.ProjectID)
 	}
 	if len(params) == 0 {
-		log.Warn(ctx).Msg("no fields to update")
+		log.Warn().Msg("no fields to update")
 		return nil
 	}
 

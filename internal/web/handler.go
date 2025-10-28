@@ -15,7 +15,7 @@ import (
 	applicationMetricValueModel "k8s-monitoring-app/pkg/application_metric_value/model"
 	projectModel "k8s-monitoring-app/pkg/project/model"
 
-	"gitlab.cloudscript.com.br/general/go-instrumentation.git/log"
+	"github.com/rs/zerolog/log"
 )
 
 type Handler struct {
@@ -97,7 +97,7 @@ func (h *Handler) Dashboard(sc *core.HTTPServerContext) error {
 	sc.Response().WriteHeader(http.StatusOK)
 
 	if err := h.templates.ExecuteTemplate(sc.Response().Writer, "layout.html", data); err != nil {
-		log.Error(sc.Request().Context(), err).Msg("error executing template")
+		log.Error().Err(err).Msg("error executing template")
 		return err
 	}
 
@@ -115,11 +115,11 @@ func (h *Handler) DeleteMetric(sc *core.HTTPServerContext) error {
 
 	err := serverModel.ServerRepos.ApplicationMetric.Delete(ctx, id)
 	if err != nil {
-		log.Error(ctx, err).Str("id", id).Msg("error deleting metric")
+		log.Error().Str("id", id).Msg("error deleting metric")
 		return sc.String(http.StatusInternalServerError, "Error deleting metric")
 	}
 
-	log.Info(ctx).Str("id", id).Msg("metric deleted successfully")
+	log.Info().Str("id", id).Msg("metric deleted successfully")
 	return sc.String(http.StatusOK, "Metric deleted successfully")
 }
 
@@ -134,11 +134,11 @@ func (h *Handler) DeleteApplication(sc *core.HTTPServerContext) error {
 
 	err := serverModel.ServerRepos.Application.Delete(ctx, id)
 	if err != nil {
-		log.Error(ctx, err).Str("id", id).Msg("error deleting application")
+		log.Error().Str("id", id).Msg("error deleting application")
 		return sc.String(http.StatusInternalServerError, "Error deleting application")
 	}
 
-	log.Info(ctx).Str("id", id).Msg("application deleted successfully")
+	log.Info().Str("id", id).Msg("application deleted successfully")
 	return sc.String(http.StatusOK, "Application deleted successfully")
 }
 
@@ -153,11 +153,11 @@ func (h *Handler) DeleteProject(sc *core.HTTPServerContext) error {
 
 	err := serverModel.ServerRepos.Project.Delete(ctx, id)
 	if err != nil {
-		log.Error(ctx, err).Str("id", id).Msg("error deleting project")
+		log.Error().Str("id", id).Msg("error deleting project")
 		return sc.String(http.StatusInternalServerError, "Error deleting project")
 	}
 
-	log.Info(ctx).Str("id", id).Msg("project deleted successfully")
+	log.Info().Str("id", id).Msg("project deleted successfully")
 	return sc.String(http.StatusOK, "Project deleted successfully")
 }
 
@@ -179,7 +179,7 @@ func (h *Handler) RenderCadastroProjects(sc *core.HTTPServerContext) error {
 	sc.Response().WriteHeader(http.StatusOK)
 
 	if err := h.templates.ExecuteTemplate(sc.Response().Writer, "cadastro-projetos.html", data); err != nil {
-		log.Error(sc.Request().Context(), err).Msg("error executing cadastro-projetos template")
+		log.Error().Err(err).Msg("error executing cadastro-projetos template")
 		return err
 	}
 
@@ -204,7 +204,7 @@ func (h *Handler) RenderCadastroApplications(sc *core.HTTPServerContext) error {
 	sc.Response().WriteHeader(http.StatusOK)
 
 	if err := h.templates.ExecuteTemplate(sc.Response().Writer, "cadastro-aplicacoes.html", data); err != nil {
-		log.Error(sc.Request().Context(), err).Msg("error executing cadastro-aplicacoes template")
+		log.Error().Err(err).Msg("error executing cadastro-aplicacoes template")
 		return err
 	}
 
@@ -229,7 +229,7 @@ func (h *Handler) RenderCadastroMetrics(sc *core.HTTPServerContext) error {
 	sc.Response().WriteHeader(http.StatusOK)
 
 	if err := h.templates.ExecuteTemplate(sc.Response().Writer, "cadastro-metricas.html", data); err != nil {
-		log.Error(sc.Request().Context(), err).Msg("error executing cadastro-metricas template")
+		log.Error().Err(err).Msg("error executing cadastro-metricas template")
 		return err
 	}
 
@@ -240,16 +240,16 @@ func (h *Handler) RenderCadastroMetrics(sc *core.HTTPServerContext) error {
 func (h *Handler) GetProjectsOptions(sc *core.HTTPServerContext) error {
 	ctx := sc.Request().Context()
 
-	log.Info(ctx).Msg("GetProjectsOptions called")
+	log.Info().Msg("GetProjectsOptions called")
 
 	// Get all projects
 	projects, err := serverModel.ServerRepos.Project.List(ctx)
 	if err != nil {
-		log.Error(ctx, err).Msg("error listing projects")
+		log.Error().Msg("error listing projects")
 		return sc.String(http.StatusInternalServerError, "Error loading projects")
 	}
 
-	log.Info(ctx).Int("count", len(projects)).Msg("Projects retrieved for options")
+	log.Info().Int("count", len(projects)).Msg("Projects retrieved for options")
 
 	// Generate HTML options
 	sc.Response().Header().Set("Content-Type", "text/html")
@@ -274,7 +274,7 @@ func (h *Handler) GetApplicationsOptions(sc *core.HTTPServerContext) error {
 	// Get query parameter for filtering by project
 	projectID := sc.QueryParam("project_id")
 
-	log.Info(ctx).
+	log.Info().
 		Str("project_id", projectID).
 		Msg("GetApplicationsOptions called")
 
@@ -289,11 +289,11 @@ func (h *Handler) GetApplicationsOptions(sc *core.HTTPServerContext) error {
 	}
 
 	if err != nil {
-		log.Error(ctx, err).Msg("error listing applications")
+		log.Error().Msg("error listing applications")
 		return sc.String(http.StatusInternalServerError, "Error loading applications")
 	}
 
-	log.Info(ctx).
+	log.Info().
 		Int("count", len(applications)).
 		Str("project_filter", projectID).
 		Msg("Applications retrieved for options")
@@ -325,16 +325,16 @@ func (h *Handler) GetApplicationsOptions(sc *core.HTTPServerContext) error {
 func (h *Handler) GetMetricTypesOptions(sc *core.HTTPServerContext) error {
 	ctx := sc.Request().Context()
 
-	log.Info(ctx).Msg("GetMetricTypesOptions called")
+	log.Info().Msg("GetMetricTypesOptions called")
 
 	// Get all metric types
 	metricTypes, err := serverModel.ServerRepos.MetricType.List(ctx)
 	if err != nil {
-		log.Error(ctx, err).Msg("error listing metric types")
+		log.Error().Msg("error listing metric types")
 		return sc.String(http.StatusInternalServerError, "Error loading metric types")
 	}
 
-	log.Info(ctx).Int("count", len(metricTypes)).Msg("Metric types retrieved for options")
+	log.Info().Int("count", len(metricTypes)).Msg("Metric types retrieved for options")
 
 	// Generate HTML options
 	sc.Response().Header().Set("Content-Type", "text/html")
@@ -361,12 +361,12 @@ func (h *Handler) GetMetricConfigurationFields(sc *core.HTTPServerContext) error
 		return sc.String(http.StatusBadRequest, "Metric type ID is required")
 	}
 
-	log.Info(ctx).Str("metric_type_id", metricTypeID).Msg("GetMetricConfigurationFields called")
+	log.Info().Str("metric_type_id", metricTypeID).Msg("GetMetricConfigurationFields called")
 
 	// Get metric type details
 	metricType, err := serverModel.ServerRepos.MetricType.Get(ctx, metricTypeID)
 	if err != nil {
-		log.Error(ctx, err).Msg("error getting metric type")
+		log.Error().Msg("error getting metric type")
 		return sc.String(http.StatusNotFound, "Metric type not found")
 	}
 
@@ -740,7 +740,7 @@ func (h *Handler) GetProjectsList(sc *core.HTTPServerContext) error {
 
 	projects, err := serverModel.ServerRepos.Project.List(ctx)
 	if err != nil {
-		log.Error(ctx, err).Msg("error listing projects")
+		log.Error().Msg("error listing projects")
 		return sc.String(http.StatusInternalServerError, "Error loading projects")
 	}
 
@@ -749,7 +749,7 @@ func (h *Handler) GetProjectsList(sc *core.HTTPServerContext) error {
 
 	for _, project := range projects {
 		if err := h.templates.ExecuteTemplate(sc.Response().Writer, "project-list-item", project); err != nil {
-			log.Error(ctx, err).Msg("error executing template")
+			log.Error().Msg("error executing template")
 			return err
 		}
 	}
@@ -765,14 +765,14 @@ func (h *Handler) GetApplicationsList(sc *core.HTTPServerContext) error {
 	projectID := sc.QueryParam("project_id")
 	nameFilter := sc.QueryParam("name")
 
-	log.Info(ctx).
+	log.Info().
 		Str("project_id", projectID).
 		Str("name_filter", nameFilter).
 		Msg("GetApplicationsList called with filters")
 
 	applications, err := serverModel.ServerRepos.Application.List(ctx)
 	if err != nil {
-		log.Error(ctx, err).Msg("error listing applications")
+		log.Error().Msg("error listing applications")
 		return sc.String(http.StatusInternalServerError, "Error loading applications")
 	}
 
@@ -796,7 +796,7 @@ func (h *Handler) GetApplicationsList(sc *core.HTTPServerContext) error {
 		filteredApplications = append(filteredApplications, app)
 	}
 
-	log.Info(ctx).
+	log.Info().
 		Int("total_applications", len(applications)).
 		Int("filtered_applications", len(filteredApplications)).
 		Msg("Applications filtered")
@@ -826,14 +826,14 @@ func (h *Handler) GetApplicationsList(sc *core.HTTPServerContext) error {
 		// Get project details
 		project, err := serverModel.ServerRepos.Project.Get(ctx, app.ProjectID)
 		if err != nil {
-			log.Error(ctx, err).Str("project_id", app.ProjectID).Msg("error getting project")
+			log.Error().Str("project_id", app.ProjectID).Msg("error getting project")
 			display.ProjectName = "N/A"
 		} else {
 			display.ProjectName = project.Name
 		}
 
 		if err := h.templates.ExecuteTemplate(sc.Response().Writer, "application-list-item", display); err != nil {
-			log.Error(ctx, err).Msg("error executing template")
+			log.Error().Msg("error executing template")
 			return err
 		}
 	}
@@ -850,7 +850,7 @@ func (h *Handler) GetMetricsList(sc *core.HTTPServerContext) error {
 	applicationID := sc.QueryParam("application_id")
 	metricTypeID := sc.QueryParam("metric_type_id")
 
-	log.Info(ctx).
+	log.Info().
 		Str("project_id", projectID).
 		Str("application_id", applicationID).
 		Str("metric_type_id", metricTypeID).
@@ -858,7 +858,7 @@ func (h *Handler) GetMetricsList(sc *core.HTTPServerContext) error {
 
 	metrics, err := serverModel.ServerRepos.ApplicationMetric.List(ctx)
 	if err != nil {
-		log.Error(ctx, err).Msg("error listing metrics")
+		log.Error().Msg("error listing metrics")
 		return sc.String(http.StatusInternalServerError, "Error loading metrics")
 	}
 
@@ -886,7 +886,7 @@ func (h *Handler) GetMetricsList(sc *core.HTTPServerContext) error {
 		filteredMetrics = append(filteredMetrics, metric)
 	}
 
-	log.Info(ctx).
+	log.Info().
 		Int("total_metrics", len(metrics)).
 		Int("filtered_metrics", len(filteredMetrics)).
 		Msg("Metrics filtered")
@@ -916,7 +916,7 @@ func (h *Handler) GetMetricsList(sc *core.HTTPServerContext) error {
 		// Get metric type details
 		metricType, err := serverModel.ServerRepos.MetricType.Get(ctx, metric.TypeID)
 		if err != nil {
-			log.Error(ctx, err).Str("metric_type_id", metric.TypeID).Msg("error getting metric type")
+			log.Error().Str("metric_type_id", metric.TypeID).Msg("error getting metric type")
 			display.MetricTypeName = "N/A"
 		} else {
 			display.MetricTypeName = metricType.Name
@@ -925,7 +925,7 @@ func (h *Handler) GetMetricsList(sc *core.HTTPServerContext) error {
 		// Get application details
 		application, err := serverModel.ServerRepos.Application.Get(ctx, metric.ApplicationID)
 		if err != nil {
-			log.Error(ctx, err).Str("application_id", metric.ApplicationID).Msg("error getting application")
+			log.Error().Str("application_id", metric.ApplicationID).Msg("error getting application")
 			display.ApplicationName = "N/A"
 			display.ProjectName = "N/A"
 		} else {
@@ -934,7 +934,7 @@ func (h *Handler) GetMetricsList(sc *core.HTTPServerContext) error {
 			// Get project details
 			project, err := serverModel.ServerRepos.Project.Get(ctx, application.ProjectID)
 			if err != nil {
-				log.Error(ctx, err).Str("project_id", application.ProjectID).Msg("error getting project")
+				log.Error().Str("project_id", application.ProjectID).Msg("error getting project")
 				display.ProjectName = "N/A"
 			} else {
 				display.ProjectName = project.Name
@@ -942,7 +942,7 @@ func (h *Handler) GetMetricsList(sc *core.HTTPServerContext) error {
 		}
 
 		if err := h.templates.ExecuteTemplate(sc.Response().Writer, "metric-list-item", display); err != nil {
-			log.Error(ctx, err).Msg("error executing template")
+			log.Error().Msg("error executing template")
 			return err
 		}
 	}
@@ -956,7 +956,7 @@ func (h *Handler) RenderLogin(sc *core.HTTPServerContext) error {
 	sc.Response().WriteHeader(http.StatusOK)
 
 	if err := h.templates.ExecuteTemplate(sc.Response().Writer, "login.html", nil); err != nil {
-		log.Error(sc.Request().Context(), err).Msg("error executing login template")
+		log.Error().Err(err).Msg("error executing login template")
 		return err
 	}
 
@@ -992,7 +992,7 @@ func (h *Handler) RenderAuthError(sc *core.HTTPServerContext) error {
 	sc.Response().WriteHeader(http.StatusUnauthorized)
 
 	if err := h.templates.ExecuteTemplate(sc.Response().Writer, "auth-error.html", data); err != nil {
-		log.Error(sc.Request().Context(), err).Msg("error executing auth-error template")
+		log.Error().Err(err).Msg("error executing auth-error template")
 		return err
 	}
 
@@ -1008,23 +1008,23 @@ type ProjectWithApplications struct {
 func (h *Handler) GetProjects(sc *core.HTTPServerContext) error {
 	ctx := sc.Request().Context()
 
-	log.Info(ctx).Msg("GetProjects called")
+	log.Info().Msg("GetProjects called")
 
 	// Get all projects
 	projects, err := serverModel.ServerRepos.Project.List(ctx)
 	if err != nil {
-		log.Error(ctx, err).Msg("error listing projects")
+		log.Error().Msg("error listing projects")
 		return sc.String(http.StatusInternalServerError, "Error loading projects")
 	}
 
-	log.Info(ctx).Int("count", len(projects)).Msg("Projects retrieved")
+	log.Info().Int("count", len(projects)).Msg("Projects retrieved")
 
 	// Get applications for each project
 	var projectsWithApps []ProjectWithApplications
 	for _, project := range projects {
 		apps, err := serverModel.ServerRepos.Application.ListByProject(ctx, project.ID)
 		if err != nil {
-			log.Error(ctx, err).Str("project_id", project.ID).Msg("error listing applications")
+			log.Error().Str("project_id", project.ID).Msg("error listing applications")
 			continue
 		}
 
@@ -1040,7 +1040,7 @@ func (h *Handler) GetProjects(sc *core.HTTPServerContext) error {
 
 	for _, projectWithApps := range projectsWithApps {
 		if err := h.templates.ExecuteTemplate(sc.Response().Writer, "project-card", projectWithApps); err != nil {
-			log.Error(ctx, err).Msg("error executing template")
+			log.Error().Msg("error executing template")
 			return err
 		}
 	}
@@ -1083,14 +1083,14 @@ func (h *Handler) GetApplicationMetrics(sc *core.HTTPServerContext) error {
 	// Get application details
 	application, err := serverModel.ServerRepos.Application.Get(ctx, applicationID)
 	if err != nil {
-		log.Error(ctx, err).Str("application_id", applicationID).Msg("error getting application")
+		log.Error().Str("application_id", applicationID).Msg("error getting application")
 		return sc.String(http.StatusNotFound, "Application not found")
 	}
 
 	// Get all metrics for this application
 	applicationMetrics, err := serverModel.ServerRepos.ApplicationMetric.ListByApplication(ctx, applicationID)
 	if err != nil {
-		log.Error(ctx, err).Str("application_id", applicationID).Msg("error listing application metrics")
+		log.Error().Str("application_id", applicationID).Msg("error listing application metrics")
 		return sc.String(http.StatusInternalServerError, "Error loading metrics")
 	}
 
@@ -1101,7 +1101,7 @@ func (h *Handler) GetApplicationMetrics(sc *core.HTTPServerContext) error {
 		// Get metric type details
 		metricType, err := serverModel.ServerRepos.MetricType.Get(ctx, metric.TypeID)
 		if err != nil {
-			log.Error(ctx, err).Str("metric_type_id", metric.TypeID).Msg("error getting metric type")
+			log.Error().Str("metric_type_id", metric.TypeID).Msg("error getting metric type")
 			continue
 		}
 
@@ -1112,7 +1112,7 @@ func (h *Handler) GetApplicationMetrics(sc *core.HTTPServerContext) error {
 
 		// Parse Configuration from JSON to map
 		var config map[string]interface{}
-		if err := json.Unmarshal(metric.Configuration, &config); err == nil {
+		if err = json.Unmarshal(metric.Configuration, &config); err == nil {
 			metricWithValue.Configuration = config
 		}
 
@@ -1143,7 +1143,7 @@ func (h *Handler) GetApplicationMetrics(sc *core.HTTPServerContext) error {
 		MetricsByType:          metricsByType,
 	}
 
-	log.Info(ctx).
+	log.Info().
 		Str("app_name", data.ApplicationName).
 		Int("metrics_count", len(metricsByType)).
 		Msg("Rendering application metrics")
@@ -1151,7 +1151,7 @@ func (h *Handler) GetApplicationMetrics(sc *core.HTTPServerContext) error {
 	// Debug: log metric types
 	for metricTypeName, metric := range metricsByType {
 		hasValue := metric.LatestValue != nil
-		log.Info(ctx).
+		log.Info().
 			Str("metric_type", metricTypeName).
 			Bool("has_value", hasValue).
 			Msg("Metric in map")
@@ -1162,7 +1162,7 @@ func (h *Handler) GetApplicationMetrics(sc *core.HTTPServerContext) error {
 	sc.Response().WriteHeader(http.StatusOK)
 
 	if err := h.templates.ExecuteTemplate(sc.Response().Writer, "application-metrics", data); err != nil {
-		log.Error(ctx, err).
+		log.Error().
 			Str("app_id", applicationID).
 			Str("app_name", data.ApplicationName).
 			Msg("error executing template - check template syntax")

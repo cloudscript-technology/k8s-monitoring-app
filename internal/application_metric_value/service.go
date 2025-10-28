@@ -10,7 +10,7 @@ import (
 	serverModel "k8s-monitoring-app/internal/server/model"
 	model "k8s-monitoring-app/pkg/application_metric_value/model"
 
-	"gitlab.cloudscript.com.br/general/go-instrumentation.git/log"
+	"github.com/rs/zerolog/log"
 )
 
 type service struct{}
@@ -25,13 +25,13 @@ func (s *service) Get(sc *core.HTTPServerContext) error {
 	id := sc.Param("id")
 
 	if len(id) == 0 {
-		log.Error(ctx, errors.New("id is empty")).Msg("error getting metric value")
+		log.Error().Err(errors.New("id is empty")).Msg("error getting metric value")
 		return sc.String(http.StatusBadRequest, "invalid request")
 	}
 
 	metricValue, err := serverModel.ServerRepos.ApplicationMetricValue.Get(ctx, id)
 	if err != nil {
-		log.Error(ctx, err).Msg("error getting metric value")
+		log.Error().Err(err).Msg("error getting metric value")
 		return sc.String(http.StatusNotFound, "metric value not found")
 	}
 
@@ -44,7 +44,7 @@ func (s *service) ListByApplicationMetric(sc *core.HTTPServerContext) error {
 	applicationMetricID := sc.Param("application_metric_id")
 
 	if len(applicationMetricID) == 0 {
-		log.Error(ctx, errors.New("application_metric_id is empty")).Msg("error listing metric values")
+		log.Error().Err(errors.New("application_metric_id is empty")).Msg("error listing metric values")
 		return sc.String(http.StatusBadRequest, "invalid request")
 	}
 
@@ -62,7 +62,7 @@ func (s *service) ListByApplicationMetric(sc *core.HTTPServerContext) error {
 
 	metricValues, err := serverModel.ServerRepos.ApplicationMetricValue.ListByApplicationMetric(ctx, applicationMetricID, limit)
 	if err != nil {
-		log.Error(ctx, err).Msg("error listing metric values")
+		log.Error().Msg("error listing metric values")
 		return sc.String(http.StatusInternalServerError, "internal server error")
 	}
 
@@ -75,28 +75,28 @@ func (s *service) GetLatestByApplication(sc *core.HTTPServerContext) error {
 	applicationID := sc.Param("application_id")
 
 	if len(applicationID) == 0 {
-		log.Error(ctx, errors.New("application_id is empty")).Msg("error getting latest metrics")
+		log.Error().Err(errors.New("application_id is empty")).Msg("error getting latest metrics")
 		return sc.String(http.StatusBadRequest, "invalid request")
 	}
 
 	// Get application details
 	application, err := serverModel.ServerRepos.Application.Get(ctx, applicationID)
 	if err != nil {
-		log.Error(ctx, err).Msg("error getting application")
+		log.Error().Msg("error getting application")
 		return sc.String(http.StatusNotFound, "application not found")
 	}
 
 	// Get project details
 	project, err := serverModel.ServerRepos.Project.Get(ctx, application.ProjectID)
 	if err != nil {
-		log.Error(ctx, err).Msg("error getting project")
+		log.Error().Msg("error getting project")
 		// Continue even if project not found
 	}
 
 	// Get all metrics for this application
 	applicationMetrics, err := serverModel.ServerRepos.ApplicationMetric.ListByApplication(ctx, applicationID)
 	if err != nil {
-		log.Error(ctx, err).Msg("error listing application metrics")
+		log.Error().Msg("error listing application metrics")
 		return sc.String(http.StatusInternalServerError, "internal server error")
 	}
 
@@ -146,7 +146,7 @@ func (s *service) GetLatestByApplication(sc *core.HTTPServerContext) error {
 		// Get metric type details
 		metricType, err := serverModel.ServerRepos.MetricType.Get(ctx, metric.TypeID)
 		if err != nil {
-			log.Error(ctx, err).Str("metric_type_id", metric.TypeID).Msg("error getting metric type")
+			log.Error().Str("metric_type_id", metric.TypeID).Msg("error getting metric type")
 			continue
 		}
 

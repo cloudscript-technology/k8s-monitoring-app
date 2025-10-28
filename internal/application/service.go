@@ -1,14 +1,13 @@
 package application
 
 import (
-	"errors"
 	"net/http"
 
 	"k8s-monitoring-app/internal/core"
 	serverModel "k8s-monitoring-app/internal/server/model"
 	model "k8s-monitoring-app/pkg/application/model"
 
-	"gitlab.cloudscript.com.br/general/go-instrumentation.git/log"
+	"github.com/rs/zerolog/log"
 )
 
 type service struct{}
@@ -23,13 +22,13 @@ func (s *service) Get(sc *core.HTTPServerContext) error {
 	id := sc.Param("id")
 
 	if len(id) == 0 {
-		log.Error(ctx, errors.New("id is empty")).Msg("error getting application")
+		log.Error().Msg("id is empty")
 		return sc.String(http.StatusBadRequest, "invalid request")
 	}
 
 	application, err := serverModel.ServerRepos.Application.Get(ctx, id)
 	if err != nil {
-		log.Error(ctx, err).Msg("error getting application")
+		log.Error().Msg("error getting application")
 		return sc.String(http.StatusNotFound, "application not found")
 	}
 
@@ -41,7 +40,7 @@ func (s *service) List(sc *core.HTTPServerContext) error {
 
 	applications, err := serverModel.ServerRepos.Application.List(ctx)
 	if err != nil {
-		log.Error(ctx, err).Msg("error listing applications")
+		log.Error().Msg("error listing applications")
 		return sc.String(http.StatusInternalServerError, "internal server error")
 	}
 
@@ -54,13 +53,13 @@ func (s *service) ListByProject(sc *core.HTTPServerContext) error {
 	projectID := sc.Param("project_id")
 
 	if len(projectID) == 0 {
-		log.Error(ctx, errors.New("project_id is empty")).Msg("error listing applications by project")
+		log.Error().Msg("project_id is empty")
 		return sc.String(http.StatusBadRequest, "invalid request")
 	}
 
 	applications, err := serverModel.ServerRepos.Application.ListByProject(ctx, projectID)
 	if err != nil {
-		log.Error(ctx, err).Msg("error listing applications by project")
+		log.Error().Msg("error listing applications by project")
 		return sc.String(http.StatusInternalServerError, "internal server error")
 	}
 
@@ -72,19 +71,19 @@ func (s *service) Add(sc *core.HTTPServerContext) error {
 
 	application := model.Application{}
 	if err := sc.Bind(&application); err != nil {
-		log.Error(ctx, err).Msg("error binding application")
+		log.Error().Msg("error binding application")
 		return sc.String(http.StatusBadRequest, "invalid request body")
 	}
 
 	// Validate that the project exists
 	_, err := serverModel.ServerRepos.Project.Get(ctx, application.ProjectID)
 	if err != nil {
-		log.Error(ctx, err).Msg("error getting project")
+		log.Error().Msg("error getting project")
 		return sc.String(http.StatusBadRequest, "project not found")
 	}
 
 	if err := serverModel.ServerRepos.Application.Add(ctx, &application); err != nil {
-		log.Error(ctx, err).Msg("error add application")
+		log.Error().Msg("error add application")
 		return sc.String(http.StatusInternalServerError, "internal server error")
 	}
 
@@ -98,13 +97,13 @@ func (s *service) Update(sc *core.HTTPServerContext) error {
 	// First get the existing application to check it exists
 	_, err := serverModel.ServerRepos.Application.Get(ctx, id)
 	if err != nil {
-		log.Error(ctx, err).Msg("error getting application")
+		log.Error().Msg("error getting application")
 		return sc.String(http.StatusNotFound, "application not found")
 	}
 
 	application := model.Application{}
 	if err := sc.Bind(&application); err != nil {
-		log.Error(ctx, err).Msg("error binding application")
+		log.Error().Msg("error binding application")
 		return sc.String(http.StatusBadRequest, "Invalid Request")
 	}
 	application.ID = id
@@ -113,13 +112,13 @@ func (s *service) Update(sc *core.HTTPServerContext) error {
 	if application.ProjectID != "" {
 		_, err := serverModel.ServerRepos.Project.Get(ctx, application.ProjectID)
 		if err != nil {
-			log.Error(ctx, err).Msg("error getting project")
+			log.Error().Msg("error getting project")
 			return sc.String(http.StatusBadRequest, "project not found")
 		}
 	}
 
 	if err := serverModel.ServerRepos.Application.Update(ctx, &application); err != nil {
-		log.Error(ctx, err).Msg("error updating application")
+		log.Error().Msg("error updating application")
 		return sc.String(http.StatusInternalServerError, "Internal Server Error")
 	}
 
@@ -131,13 +130,13 @@ func (s *service) Delete(sc *core.HTTPServerContext) error {
 	id := sc.Param("id")
 
 	if len(id) == 0 {
-		log.Error(ctx, errors.New("id is empty")).Msg("error deleting application")
+		log.Error().Msg("id is empty")
 		return sc.String(http.StatusBadRequest, "Invalid Request")
 	}
 
 	err := serverModel.ServerRepos.Application.Delete(ctx, id)
 	if err != nil {
-		log.Error(ctx, err).Msg("error deleting application")
+		log.Error().Msg("error deleting application")
 		return sc.String(http.StatusInternalServerError, "Internal Server Error")
 	}
 

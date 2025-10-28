@@ -8,7 +8,7 @@ import (
 	serverModel "k8s-monitoring-app/internal/server/model"
 	model "k8s-monitoring-app/pkg/metric_type/model"
 
-	"gitlab.cloudscript.com.br/general/go-instrumentation.git/log"
+	"github.com/rs/zerolog/log"
 )
 
 type service struct{}
@@ -23,13 +23,13 @@ func (s *service) Get(sc *core.HTTPServerContext) error {
 	id := sc.Param("id")
 
 	if len(id) == 0 {
-		log.Error(ctx, errors.New("id is empty")).Msg("error getting metric type")
+		log.Error().Err(errors.New("id is empty")).Msg("error getting metric type")
 		return sc.String(http.StatusBadRequest, "invalid request")
 	}
 
 	metricType, err := serverModel.ServerRepos.MetricType.Get(ctx, id)
 	if err != nil {
-		log.Error(ctx, err).Msg("error getting metric type")
+		log.Error().Err(err).Msg("error getting metric type")
 		return sc.String(http.StatusNotFound, "metric type not found")
 	}
 
@@ -41,7 +41,7 @@ func (s *service) List(sc *core.HTTPServerContext) error {
 
 	metricTypes, err := serverModel.ServerRepos.MetricType.List(ctx)
 	if err != nil {
-		log.Error(ctx, err).Msg("error listing metric types")
+		log.Error().Err(err).Msg("error listing metric types")
 		return sc.String(http.StatusInternalServerError, "internal server error")
 	}
 

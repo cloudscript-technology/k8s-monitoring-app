@@ -13,7 +13,7 @@ import (
 	"k8s-monitoring-app/internal/env"
 
 	"github.com/labstack/echo/v4"
-	"gitlab.cloudscript.com.br/general/go-instrumentation.git/log"
+	"github.com/rs/zerolog/log"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
 )
@@ -56,7 +56,7 @@ func InitOAuth() error {
 		AllowedDomains: parseAllowedDomains(env.ALLOWED_GOOGLE_DOMAINS),
 	}
 
-	log.Info(context.Background()).
+	log.Info().
 		Str("redirect_url", env.GOOGLE_REDIRECT_URL).
 		Strs("allowed_domains", OAuth.AllowedDomains).
 		Msg("OAuth initialized successfully")
@@ -152,7 +152,7 @@ func HandleLogin(c echo.Context) error {
 
 	state, err := GenerateStateToken()
 	if err != nil {
-		log.Error(c.Request().Context(), err).Msg("Failed to generate state token")
+		log.Error().Err(err).Msg("Failed to generate state token")
 		return c.String(http.StatusInternalServerError, "Failed to generate state token")
 	}
 
@@ -183,13 +183,13 @@ func HandleCallback(c echo.Context) error {
 	// Validate state
 	stateCookie, err := c.Cookie("oauth_state")
 	if err != nil {
-		log.Error(ctx, err).Msg("State cookie not found")
+		log.Error().Msg("State cookie not found")
 		return c.Redirect(http.StatusTemporaryRedirect, "/auth/error?reason=invalid_state")
 	}
 
 	state := c.QueryParam("state")
 	if state == "" || state != stateCookie.Value {
-		log.Error(ctx, nil).Msg("Invalid state parameter")
+		log.Error().Msg("Invalid state parameter")
 		return c.Redirect(http.StatusTemporaryRedirect, "/auth/error?reason=invalid_state")
 	}
 
@@ -204,32 +204,32 @@ func HandleCallback(c echo.Context) error {
 	// Exchange code for token
 	code := c.QueryParam("code")
 	if code == "" {
-		log.Error(ctx, nil).Msg("Authorization code not found")
+		log.Error().Msg("Authorization code not found")
 		return c.Redirect(http.StatusTemporaryRedirect, "/auth/error?reason=no_code")
 	}
 
 	token, err := OAuth.ExchangeCode(ctx, code)
 	if err != nil {
-		log.Error(ctx, err).Msg("Failed to exchange code for token")
+		log.Error().Msg("Failed to exchange code for token")
 		return c.Redirect(http.StatusTemporaryRedirect, "/auth/error?reason=exchange_failed")
 	}
 
 	// Get user info
 	userInfo, err := OAuth.GetUserInfo(ctx, token)
 	if err != nil {
-		log.Error(ctx, err).Msg("Failed to get user info")
+		log.Error().Msg("Failed to get user info")
 		return c.Redirect(http.StatusTemporaryRedirect, "/auth/error?reason=user_info_failed")
 	}
 
 	// Verify email
 	if !userInfo.EmailVerified {
-		log.Warn(ctx).Str("email", userInfo.Email).Msg("Email not verified")
+		log.Warn().Str("email", userInfo.Email).Msg("Email not verified")
 		return c.Redirect(http.StatusTemporaryRedirect, "/auth/error?reason=email_not_verified")
 	}
 
 	// Check if email domain is allowed
 	if !OAuth.IsEmailAllowed(userInfo.Email) {
-		log.Warn(ctx).
+		log.Warn().
 			Str("email", userInfo.Email).
 			Str("domain", userInfo.HD).
 			Msg("Domain not allowed")
@@ -239,7 +239,7 @@ func HandleCallback(c echo.Context) error {
 	// Create session
 	session, err := CreateSession(ctx, userInfo.Email, userInfo.Name, userInfo.Picture, token)
 	if err != nil {
-		log.Error(ctx, err).Msg("Failed to create session")
+		log.Error().Msg("Failed to create session")
 		return c.Redirect(http.StatusTemporaryRedirect, "/auth/error?reason=session_failed")
 	}
 
@@ -255,7 +255,7 @@ func HandleCallback(c echo.Context) error {
 	}
 	c.SetCookie(cookie)
 
-	log.Info(ctx).
+	log.Info().
 		Str("email", userInfo.Email).
 		Str("session_id", session.ID).
 		Msg("User authenticated successfully")
@@ -272,7 +272,7 @@ func HandleLogout(c echo.Context) error {
 	if err == nil {
 		// Delete session from database
 		if err := DeleteSession(ctx, cookie.Value); err != nil {
-			log.Error(ctx, err).Str("session_id", cookie.Value).Msg("Failed to delete session")
+			log.Error().Str("session_id", cookie.Value).Msg("Failed to delete session")
 		}
 	}
 

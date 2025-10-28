@@ -10,9 +10,8 @@ require (
 	github.com/labstack/echo/v4 v4.13.3
 	github.com/lib/pq v1.10.9
 	github.com/robfig/cron/v3 v3.0.1
+	github.com/rs/zerolog v1.33.0
 	github.com/segmentio/kafka-go v0.4.49
-	gitlab.cloudscript.com.br/general/go-instrumentation.git v1.0.2
-	go.elastic.co/apm/module/apmechov4/v2 v2.6.3
 	go.elastic.co/apm/module/apmsql v1.15.0
 	go.mongodb.org/mongo-driver v1.17.3
 	golang.org/x/oauth2 v0.32.0
@@ -65,7 +64,6 @@ require (
 	github.com/pierrec/lz4/v4 v4.1.16 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/prometheus/procfs v0.15.1 // indirect
-	github.com/rs/zerolog v1.33.0 // indirect
 	github.com/santhosh-tekuri/jsonschema v1.2.4 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
@@ -76,10 +74,6 @@ require (
 	github.com/xdg-go/stringprep v1.0.4 // indirect
 	github.com/youmark/pkcs8 v0.0.0-20240726163527-a2c0da244d78 // indirect
 	go.elastic.co/apm v1.15.0 // indirect
-	go.elastic.co/apm/module/apmhttp/v2 v2.6.3 // indirect
-	go.elastic.co/apm/module/apmzerolog v1.15.0 // indirect
-	go.elastic.co/apm/module/apmzerolog/v2 v2.6.3 // indirect
-	go.elastic.co/apm/v2 v2.6.3 // indirect
 	go.elastic.co/fastjson v1.5.0 // indirect
 	go.uber.org/atomic v1.11.0 // indirect
 	golang.org/x/crypto v0.36.0 // indirect

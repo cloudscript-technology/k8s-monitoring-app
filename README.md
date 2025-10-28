@@ -9,7 +9,8 @@ A Kubernetes-native monitoring application that runs inside your cluster and col
 - 📊 **Multiple Metric Types**: Health checks, pod status, CPU, memory, PVC usage, and node tracking
 - 🔌 **Database Connection Monitoring**: Test and monitor Redis, PostgreSQL, MongoDB, MySQL, and Kong connections with authentication
 - 🗄️ **Historical Data**: All metrics stored in PostgreSQL for analysis
-- 🔐 **RBAC Ready**: Designed to work with Kubernetes security best practices
+- 🔐 **OAuth 2.0 Authentication**: Secure Google OAuth authentication with domain restriction
+- 🔒 **RBAC Ready**: Designed to work with Kubernetes security best practices
 - 📈 **Scalable**: Built to monitor multiple applications and namespaces
 - 🖥️ **Modern Web UI**: Real-time dashboard with HTMX and auto-refresh every 10s
 - 🎨 **Beautiful Interface**: Clean design with visual indicators and progress bars
@@ -56,6 +57,34 @@ A Kubernetes-native monitoring application that runs inside your cluster and col
 - Kubernetes cluster (v1.20+)
 - PostgreSQL database
 - metrics-server installed in your cluster
+- Google OAuth 2.0 credentials (for authentication)
+
+### Authentication
+
+This application uses **Google OAuth 2.0** for secure authentication. Only users from authorized email domains can access the application.
+
+**Setup Steps:**
+
+1. **Create OAuth 2.0 credentials** in [Google Cloud Console](https://console.cloud.google.com/apis/credentials)
+2. **Configure environment variables** (see below)
+3. **Users authenticate** via Google sign-in when accessing the application
+
+**📖 Complete OAuth Setup Guide:** [docs/OAUTH_SETUP.md](docs/OAUTH_SETUP.md)
+
+**Required Environment Variables:**
+```bash
+GOOGLE_CLIENT_ID=your-client-id.apps.googleusercontent.com
+GOOGLE_CLIENT_SECRET=your-client-secret
+GOOGLE_REDIRECT_URL=http://localhost:8080/auth/callback
+ALLOWED_GOOGLE_DOMAINS=yourcompany.com  # Comma-separated list
+```
+
+**Security Features:**
+- 🔐 Secure OAuth 2.0 flow with Google
+- 🏢 Domain-restricted access (only allow specific email domains)
+- 🍪 Session-based authentication with 24-hour expiry
+- 🔒 HttpOnly and Secure cookies
+- 🚪 Protected routes with automatic redirect to login
 
 ### Access the Web UI
 
@@ -519,14 +548,27 @@ helm install k8s-monitoring-app ./chart \
 
 | Variable | Description | Required | Default |
 |----------|-------------|----------|---------|
-| DB_HOST | PostgreSQL host | Yes | - |
-| DB_PORT | PostgreSQL port | Yes | 5432 |
-| DB_USER | Database user | Yes | - |
-| DB_PASSWORD | Database password | Yes | - |
-| DB_NAME | Database name | Yes | - |
+| **Database** |
+| DB_CONNECTION_STRING | PostgreSQL connection string | Yes | - |
+| **Authentication** |
+| GOOGLE_CLIENT_ID | Google OAuth Client ID | Yes* | - |
+| GOOGLE_CLIENT_SECRET | Google OAuth Client Secret | Yes* | - |
+| GOOGLE_REDIRECT_URL | OAuth callback URL | Yes* | - |
+| ALLOWED_GOOGLE_DOMAINS | Comma-separated allowed email domains | No | All domains |
+| ADMIN_TOKEN | Admin token for service-to-service auth | No | - |
+| **Metrics** |
+| METRICS_RETENTION_DAYS | Days to keep metric history | No | 30 |
+| METRICS_CLEANUP_INTERVAL | Cron expression for cleanup | No | 0 2 * * * |
+| METRICS_COLLECTION_INTERVAL | Collection interval in seconds | No | 60 |
+| **Other** |
+| ENV | Environment (development/staging/production) | No | development |
 | LOG_LEVEL | Logging level | No | info |
 | ELASTIC_APM_SERVICE_NAME | APM service name | No | - |
 | ELASTIC_APM_SERVER_URL | APM server URL | No | - |
+
+\* Required for OAuth authentication. If not configured, authentication will be disabled.
+
+**See also:** [docs/ENVIRONMENT_VARIABLES.md](docs/ENVIRONMENT_VARIABLES.md) for detailed configuration
 
 ## Monitoring Schedule
 

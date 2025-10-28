@@ -40,6 +40,12 @@ func NewHandler() (*Handler, error) {
 			bFloat, _ := toFloat64(b)
 			return aFloat - bFloat
 		},
+		"firstChar": func(s string) string {
+			if len(s) == 0 {
+				return "?"
+			}
+			return string(s[0])
+		},
 	}
 
 	templates, err := template.New("").Funcs(funcMap).ParseGlob("web/templates/*.html")
@@ -72,8 +78,16 @@ func toFloat64(v interface{}) (float64, error) {
 
 // Dashboard renders the main dashboard page
 func (h *Handler) Dashboard(sc *core.HTTPServerContext) error {
+	// Get user info from context (set by auth middleware)
+	userEmail := sc.Get("user_email")
+	userName := sc.Get("user_name")
+	userPicture := sc.Get("user_picture")
+
 	data := map[string]interface{}{
-		"Title": "Dashboard",
+		"Title":       "Dashboard",
+		"UserEmail":   userEmail,
+		"UserName":    userName,
+		"UserPicture": userPicture,
 	}
 
 	sc.Response().Header().Set("Content-Type", "text/html")
@@ -81,6 +95,55 @@ func (h *Handler) Dashboard(sc *core.HTTPServerContext) error {
 
 	if err := h.templates.ExecuteTemplate(sc.Response().Writer, "layout.html", data); err != nil {
 		log.Error(sc.Request().Context(), err).Msg("error executing template")
+		return err
+	}
+
+	return nil
+}
+
+// RenderLogin renders the login page
+func (h *Handler) RenderLogin(sc *core.HTTPServerContext) error {
+	sc.Response().Header().Set("Content-Type", "text/html")
+	sc.Response().WriteHeader(http.StatusOK)
+
+	if err := h.templates.ExecuteTemplate(sc.Response().Writer, "login.html", nil); err != nil {
+		log.Error(sc.Request().Context(), err).Msg("error executing login template")
+		return err
+	}
+
+	return nil
+}
+
+// RenderAuthError renders the authentication error page
+func (h *Handler) RenderAuthError(sc *core.HTTPServerContext) error {
+	reason := sc.QueryParam("reason")
+
+	messages := map[string]string{
+		"invalid_state":      "Invalid authentication state. Please try again.",
+		"no_code":            "No authorization code received. Please try again.",
+		"exchange_failed":    "Failed to exchange authorization code. Please try again.",
+		"user_info_failed":   "Failed to retrieve user information. Please try again.",
+		"email_not_verified": "Your email address is not verified with Google.",
+		"domain_not_allowed": "Your email domain is not authorized to access this application.",
+		"session_failed":     "Failed to create session. Please try again.",
+		"unauthorized":       "You are not authorized to access this application.",
+	}
+
+	message, ok := messages[reason]
+	if !ok {
+		message = "An unknown error occurred during authentication."
+	}
+
+	data := map[string]interface{}{
+		"Message": message,
+		"Reason":  reason,
+	}
+
+	sc.Response().Header().Set("Content-Type", "text/html")
+	sc.Response().WriteHeader(http.StatusUnauthorized)
+
+	if err := h.templates.ExecuteTemplate(sc.Response().Writer, "auth-error.html", data); err != nil {
+		log.Error(sc.Request().Context(), err).Msg("error executing auth-error template")
 		return err
 	}
 

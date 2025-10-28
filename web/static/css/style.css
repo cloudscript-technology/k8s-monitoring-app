@@ -55,6 +55,8 @@ body {
     display: flex;
     gap: 1.5rem;
     margin-top: 0.75rem;
+    align-items: center;
+    justify-content: space-between;
 }
 
 .nav-link {
@@ -66,6 +68,118 @@ body {
 
 .nav-link:hover {
     color: var(--primary-color);
+}
+
+/* User Info */
+.user-info {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-left: auto;
+    padding: 0.5rem 1rem;
+    background: var(--gray-50);
+    border-radius: var(--border-radius);
+    transition: all 0.2s;
+}
+
+.user-info:hover {
+    background: var(--gray-100);
+}
+
+.user-avatar-container {
+    position: relative;
+    width: 40px;
+    height: 40px;
+    flex-shrink: 0;
+}
+
+.user-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    border: 2px solid var(--primary-color);
+    object-fit: cover;
+    background-color: white;
+    display: block;
+    position: absolute;
+    top: 0;
+    left: 0;
+}
+
+.user-avatar-placeholder {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: var(--primary-color);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    font-size: 1.25rem;
+    text-transform: uppercase;
+    flex-shrink: 0;
+    position: absolute;
+    top: 0;
+    left: 0;
+}
+
+.user-details {
+    display: flex;
+    flex-direction: column;
+    gap: 0.125rem;
+}
+
+.user-name {
+    font-weight: 600;
+    color: var(--gray-900);
+    font-size: 0.875rem;
+}
+
+.user-email {
+    font-size: 0.75rem;
+    color: var(--gray-600);
+}
+
+.logout-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.5rem;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--gray-600);
+    text-decoration: none;
+    transition: all 0.2s;
+    margin-left: 0.5rem;
+}
+
+.logout-btn:hover {
+    background: var(--danger-color);
+    color: white;
+    transform: translateX(2px);
+}
+
+.logout-btn svg {
+    width: 20px;
+    height: 20px;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .navbar-menu {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    
+    .user-info {
+        margin-left: 0;
+        width: 100%;
+    }
+    
+    .user-details {
+        flex: 1;
+    }
 }
 
 /* Loading */

@@ -30,6 +30,144 @@
             ]
         },
         {
+            "name": "Authentication",
+            "item": [
+                {
+                    "name": "Login Page",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{base_url}}/auth/login",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "auth",
+                                "login"
+                            ]
+                        },
+                        "description": "Display the login page with \"Sign in with Google\" button. This is a web page, not an API endpoint."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Initiate OAuth (Sign in with Google)",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{base_url}}/auth/google",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "auth",
+                                "google"
+                            ]
+                        },
+                        "description": "Initiates the OAuth 2.0 flow with Google. Redirects to Google's authentication page.\n\nNote: This endpoint is meant to be used in a browser, as it involves redirects and OAuth flow. Testing in Postman will not complete the full authentication flow."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "OAuth Callback",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{base_url}}/auth/callback?code=AUTHORIZATION_CODE&state=STATE_TOKEN",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "auth",
+                                "callback"
+                            ],
+                            "query": [
+                                {
+                                    "key": "code",
+                                    "value": "AUTHORIZATION_CODE",
+                                    "description": "Authorization code from Google OAuth"
+                                },
+                                {
+                                    "key": "state",
+                                    "value": "STATE_TOKEN",
+                                    "description": "State token for CSRF protection"
+                                }
+                            ]
+                        },
+                        "description": "OAuth 2.0 callback endpoint. Google redirects here after user authentication.\n\nThis endpoint:\n1. Validates the state token\n2. Exchanges the authorization code for access token\n3. Retrieves user information from Google\n4. Validates email domain\n5. Creates a session\n6. Sets session cookie\n7. Redirects to dashboard\n\nNote: This is automatically called by Google OAuth flow. Manual testing is not recommended."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Logout",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{base_url}}/auth/logout",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "auth",
+                                "logout"
+                            ]
+                        },
+                        "description": "Logout endpoint. Deletes the user's session from the database and clears the session cookie.\n\nAfter logout, the user is redirected to the login page."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Authentication Error Page",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{base_url}}/auth/error?reason=domain_not_allowed",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "auth",
+                                "error"
+                            ],
+                            "query": [
+                                {
+                                    "key": "reason",
+                                    "value": "domain_not_allowed",
+                                    "description": "Error reason code"
+                                }
+                            ]
+                        },
+                        "description": "Display authentication error page with specific error message.\n\nPossible error reasons:\n- invalid_state: Invalid authentication state\n- no_code: No authorization code received\n- exchange_failed: Failed to exchange authorization code\n- user_info_failed: Failed to retrieve user information\n- email_not_verified: Email not verified with Google\n- domain_not_allowed: Email domain not authorized\n- session_failed: Failed to create session\n- unauthorized: Not authorized to access"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Check Session (Protected Route)",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{base_url}}/",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                ""
+                            ]
+                        },
+                        "description": "Test if you have a valid session by accessing the dashboard (protected route).\n\nIf authenticated: Shows the dashboard\nIf not authenticated: Redirects to /auth/login\n\nNote: In Postman, you need to manually manage cookies or use the Postman Interceptor to maintain sessions."
+                    },
+                    "response": []
+                }
+            ],
+            "description": "Authentication endpoints using Google OAuth 2.0.\n\n**Important Notes:**\n- OAuth flow requires a browser for full functionality\n- Sessions are managed via cookies\n- Only users from allowed domains can authenticate\n- All API endpoints (except these auth routes) require authentication\n\n**Configuration Required:**\n- GOOGLE_CLIENT_ID\n- GOOGLE_CLIENT_SECRET\n- GOOGLE_REDIRECT_URL\n- ALLOWED_GOOGLE_DOMAINS\n\n**For complete setup instructions, see:** docs/OAUTH_SETUP.md"
+        },
+        {
             "name": "Projects",
             "item": [
                 {

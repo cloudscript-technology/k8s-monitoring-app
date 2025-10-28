@@ -15,6 +15,12 @@ var (
 	METRICS_RETENTION_DAYS      int
 	METRICS_CLEANUP_INTERVAL    string
 	METRICS_COLLECTION_INTERVAL int // Collection interval in seconds (default: 60)
+
+	// OAuth Configuration
+	GOOGLE_CLIENT_ID       string
+	GOOGLE_CLIENT_SECRET   string
+	GOOGLE_REDIRECT_URL    string
+	ALLOWED_GOOGLE_DOMAINS string // Comma-separated list of allowed domains
 )
 
 func GetEnv() error {
@@ -50,6 +56,12 @@ func GetEnv() error {
 	ENV = os.Getenv("ENV")
 	DB_CONNECTION_STRING = os.Getenv("DB_CONNECTION_STRING")
 	ADMIN_TOKEN = os.Getenv("ADMIN_TOKEN")
+
+	// OAuth Configuration
+	GOOGLE_CLIENT_ID = os.Getenv("GOOGLE_CLIENT_ID")
+	GOOGLE_CLIENT_SECRET = os.Getenv("GOOGLE_CLIENT_SECRET")
+	GOOGLE_REDIRECT_URL = os.Getenv("GOOGLE_REDIRECT_URL")
+	ALLOWED_GOOGLE_DOMAINS = os.Getenv("ALLOWED_GOOGLE_DOMAINS")
 
 	// Metrics retention configuration (default: 30 days)
 	retentionDays := os.Getenv("METRICS_RETENTION_DAYS")

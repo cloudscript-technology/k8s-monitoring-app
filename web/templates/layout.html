@@ -17,6 +17,31 @@
             </div>
             <div class="navbar-menu">
                 <a href="/" class="nav-link">Dashboard</a>
+                {{ if .UserEmail }}
+                <div class="user-info">
+                    <div class="user-avatar-container">
+                        {{ if .UserPicture }}
+                        <img src="{{ .UserPicture }}" alt="{{ .UserName }}" class="user-avatar"
+                            onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                        <div class="user-avatar-placeholder" style="display: none;">{{ firstChar .UserName }}</div>
+                        {{ else }}
+                        <div class="user-avatar-placeholder">{{ firstChar .UserName }}</div>
+                        {{ end }}
+                    </div>
+                    <div class="user-details">
+                        <span class="user-name">{{ .UserName }}</span>
+                        <span class="user-email">{{ .UserEmail }}</span>
+                    </div>
+                    <a href="/auth/logout" class="logout-btn" title="Logout">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                            <polyline points="16 17 21 12 16 7"></polyline>
+                            <line x1="21" y1="12" x2="9" y2="12"></line>
+                        </svg>
+                    </a>
+                </div>
+                {{ end }}
             </div>
         </div>
     </nav>

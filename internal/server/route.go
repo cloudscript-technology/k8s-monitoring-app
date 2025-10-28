@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 
+	"k8s-monitoring-app/internal/auth"
 	"k8s-monitoring-app/internal/core"
 	model "k8s-monitoring-app/internal/server/model"
 	"k8s-monitoring-app/internal/web"
@@ -21,8 +22,18 @@ func bindRoutes(s *core.HTTPServer) {
 		log.Info(context.Background()).Msg("Web handler initialized successfully")
 	}
 
-	// Health check
+	// Health check (no auth required)
 	s.Api.GET("/health", s.WrapHandler(s.Health))
+
+	// Auth routes (no auth required)
+	authGroup := s.Api.Group("/auth")
+	if webHandler != nil {
+		authGroup.GET("/login", s.WrapHandler(webHandler.RenderLogin))
+		authGroup.GET("/error", s.WrapHandler(webHandler.RenderAuthError))
+	}
+	authGroup.GET("/google", auth.HandleLogin)
+	authGroup.GET("/callback", auth.HandleCallback)
+	authGroup.GET("/logout", auth.HandleLogout)
 
 	// Web UI routes
 	if webHandler != nil {

@@ -30,14 +30,26 @@ Esta collection do Postman contém todos os endpoints da API do K8s Monitoring A
 ### 1. Health Check
 - `GET /health` - Verificar status da aplicação
 
-### 2. Projects
+### 2. 🔐 Authentication (OAuth 2.0)
+- `GET /auth/login` - Página de login
+- `GET /auth/google` - Iniciar OAuth com Google
+- `GET /auth/callback` - Callback do OAuth (usado pelo Google)
+- `GET /auth/logout` - Logout e limpeza de sessão
+- `GET /auth/error` - Página de erro de autenticação
+- `GET /` - Testar sessão (rota protegida)
+
+**Importante:** A aplicação agora requer autenticação via Google OAuth 2.0. Todos os endpoints da API (exceto health check e rotas de auth) precisam de uma sessão válida.
+
+**Para mais detalhes, veja:** [AUTHENTICATION_ENDPOINTS.md](AUTHENTICATION_ENDPOINTS.md)
+
+### 3. Projects
 - `GET /api/v1/projects` - Listar projetos
 - `GET /api/v1/projects/:id` - Obter projeto por ID
 - `POST /api/v1/projects` - Criar projeto
 - `PUT /api/v1/projects/:id` - Atualizar projeto
 - `DELETE /api/v1/projects/:id` - Deletar projeto
 
-### 3. Applications
+### 4. Applications
 - `GET /api/v1/applications` - Listar todas as aplicações
 - `GET /api/v1/projects/:project_id/applications` - Listar aplicações por projeto
 - `GET /api/v1/applications/:id` - Obter aplicação por ID
@@ -45,11 +57,11 @@ Esta collection do Postman contém todos os endpoints da API do K8s Monitoring A
 - `PUT /api/v1/applications/:id` - Atualizar aplicação
 - `DELETE /api/v1/applications/:id` - Deletar aplicação
 
-### 4. Metric Types
+### 5. Metric Types
 - `GET /api/v1/metric-types` - Listar tipos de métricas disponíveis
 - `GET /api/v1/metric-types/:id` - Obter tipo de métrica por ID
 
-### 5. Application Metrics
+### 6. Application Metrics
 - `GET /api/v1/application-metrics` - Listar todas as métricas
 - `GET /api/v1/applications/:application_id/metrics` - Listar métricas por aplicação
 - `GET /api/v1/application-metrics/:id` - Obter métrica por ID
@@ -57,7 +69,7 @@ Esta collection do Postman contém todos os endpoints da API do K8s Monitoring A
 - `PUT /api/v1/application-metrics/:id` - Atualizar métrica
 - `DELETE /api/v1/application-metrics/:id` - Deletar métrica
 
-### 6. 🆕 Metric Values (Collected Data)
+### 7. 🆕 Metric Values (Collected Data)
 - `GET /api/v1/applications/:application_id/latest-metrics` - Obter últimos valores coletados
 - `GET /api/v1/application-metrics/:application_metric_id/values` - Histórico de valores
 - `GET /api/v1/metric-values/:id` - Obter valor específico
@@ -151,7 +163,7 @@ Estes endpoints são **read-only** pois os valores são coletados automaticament
 }
 ```
 
-### 7. Complete Workflow
+### 8. Complete Workflow
 Pasta com sequência completa de requests para testar o fluxo:
 1. Criar projeto
 2. Criar aplicação
@@ -184,6 +196,49 @@ O environment inclui as seguintes variáveis:
 
 ## Como Usar
 
+### 🔐 Autenticação Requerida
+
+**IMPORTANTE:** A aplicação agora requer autenticação OAuth 2.0 com Google para acessar as rotas protegidas.
+
+#### Configuração OAuth
+
+Antes de testar a API, configure as variáveis de ambiente:
+
+```bash
+export GOOGLE_CLIENT_ID="seu-client-id.apps.googleusercontent.com"
+export GOOGLE_CLIENT_SECRET="seu-client-secret"
+export GOOGLE_REDIRECT_URL="http://localhost:8080/auth/callback"
+export ALLOWED_GOOGLE_DOMAINS="suaempresa.com"
+```
+
+Para instruções completas de configuração OAuth, consulte:
+- [OAuth Setup Guide (EN)](../docs/OAUTH_SETUP.md)
+- [Guia OAuth (PT)](../docs/OAUTH_SETUP_PT.md)
+- [Authentication Endpoints](AUTHENTICATION_ENDPOINTS.md)
+
+#### Testando com Autenticação
+
+**Opção 1: Usar Postman Interceptor (Recomendado)**
+
+1. Instale o [Postman Interceptor](https://chrome.google.com/webstore/detail/postman-interceptor/)
+2. Ative o Interceptor no Postman
+3. Faça login em `http://localhost:8080` no Chrome
+4. As requisições no Postman usarão automaticamente os cookies do Chrome
+
+**Opção 2: Copiar Cookie Manualmente**
+
+1. Faça login em `http://localhost:8080` no navegador
+2. Abra DevTools (F12) → Application → Cookies
+3. Copie o valor do cookie `session_id`
+4. No Postman, adicione o cookie manualmente
+
+**Opção 3: Testar no Navegador**
+
+Para OAuth, é mais simples testar no navegador:
+```bash
+open http://localhost:8080
+```
+
 ### Teste Rápido
 
 1. **Selecione o Environment**
@@ -192,10 +247,15 @@ O environment inclui as seguintes variáveis:
 2. **Verifique a URL base**
    - Certifique-se que `base_url` está correto (localhost:8080 ou seu servidor)
 
-3. **Execute Health Check**
+3. **Execute Health Check** (não requer autenticação)
    - Vá para "Health Check" → "Health Check"
    - Clique em **Send**
    - Deve retornar `200 OK` com resposta "ok"
+
+4. **Teste Autenticação**
+   - Vá para "Authentication" → "Check Session (Protected Route)"
+   - Se não autenticado, receberá redirect para `/auth/login`
+   - Faça login no navegador primeiro (veja opções acima)
 
 ### Workflow Completo
 
@@ -396,6 +456,9 @@ newman run K8s-Monitoring-App.postman_collection.json \
 
 ## Recursos Adicionais
 
+- **[Authentication Endpoints Guide](AUTHENTICATION_ENDPOINTS.md)** - Guia completo dos endpoints de autenticação
+- **[OAuth Setup (EN)](../docs/OAUTH_SETUP.md)** - Configuração OAuth em inglês
+- **[OAuth Setup (PT)](../docs/OAUTH_SETUP_PT.md)** - Configuração OAuth em português
 - [Documentação Completa da API](../docs/API.md)
 - [Guia de Desenvolvimento Local](../docs/LOCAL_DEVELOPMENT.md)
 - [Exemplos de Uso](../docs/EXAMPLES.md)

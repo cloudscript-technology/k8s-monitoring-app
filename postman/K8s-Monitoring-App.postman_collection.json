@@ -800,6 +800,93 @@
                     "response": []
                 },
                 {
+                    "name": "Create IngressCertificate Metric (Basic)",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"application_id\": \"{{application_id}}\",\n    \"type_id\": \"{{ingresscertificate_type_id}}\",\n    \"configuration\": {\n        \"ingress_name\": \"my-app-ingress\",\n        \"warning_days\": 30\n    }\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/application-metrics",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "application-metrics"
+                            ]
+                        },
+                        "description": "Configure TLS certificate monitoring for an Ingress resource (basic configuration).\n\nThis will:\n- Monitor certificate expiration for the specified Ingress\n- Use the application's namespace\n- Auto-discover the TLS secret from Ingress spec\n- Warn when certificate has less than 30 days until expiration\n\nRequired fields:\n- ingress_name: Name of the Ingress resource (required)\n\nOptional fields:\n- warning_days: Days before expiration to show warning (default: 30)"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Create IngressCertificate Metric (Full Config)",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"application_id\": \"{{application_id}}\",\n    \"type_id\": \"{{ingresscertificate_type_id}}\",\n    \"configuration\": {\n        \"ingress_name\": \"my-app-ingress\",\n        \"ingress_namespace\": \"production\",\n        \"tls_secret_name\": \"my-app-tls\",\n        \"warning_days\": 15\n    }\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/application-metrics",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "application-metrics"
+                            ]
+                        },
+                        "description": "Configure TLS certificate monitoring for an Ingress resource (full configuration).\n\nAll fields:\n- ingress_name: Name of the Ingress resource (required)\n- ingress_namespace: Namespace where Ingress is located (optional, defaults to application namespace)\n- tls_secret_name: Name of the TLS secret (optional, auto-discovered from Ingress if not provided)\n- warning_days: Days before expiration to warn (optional, default: 30)\n\nMetric collects:\n- Certificate expiration date\n- Days until expiration (or days since expiration if expired)\n- Certificate issuer (e.g., Let's Encrypt)\n- Certificate subject/CN\n- All DNS names (SANs) in the certificate\n- Certificate status: valid, expiring_soon, expired, not_found, error"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Create IngressCertificate Metric (Cross-Namespace)",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"application_id\": \"{{application_id}}\",\n    \"type_id\": \"{{ingresscertificate_type_id}}\",\n    \"configuration\": {\n        \"ingress_name\": \"shared-ingress\",\n        \"ingress_namespace\": \"ingress-nginx\",\n        \"tls_secret_name\": \"wildcard-cert\",\n        \"warning_days\": 45\n    }\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/application-metrics",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "application-metrics"
+                            ]
+                        },
+                        "description": "Monitor a certificate from an Ingress in a different namespace.\n\nUseful for:\n- Monitoring shared wildcard certificates\n- Tracking certificates managed in a central namespace\n- Multi-tenant scenarios with shared ingress controllers\n\nExample: Monitor a wildcard certificate *.example.com managed in ingress-nginx namespace, even though your application is in a different namespace."
+                    },
+                    "response": []
+                },
+                {
                     "name": "Update Application Metric",
                     "request": {
                         "method": "PUT",

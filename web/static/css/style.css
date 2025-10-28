@@ -466,6 +466,99 @@ body {
     font-weight: normal;
 }
 
+/* Certificate Styles */
+.certificate-container {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.certificate-domains {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem;
+    margin-bottom: 0.25rem;
+}
+
+.domain-badge {
+    font-family: monospace;
+    font-size: 0.7rem;
+    color: var(--gray-700);
+    background-color: var(--gray-100);
+    padding: 0.2rem 0.5rem;
+    border-radius: 3px;
+    border: 1px solid var(--gray-300);
+}
+
+.certificate-ingress {
+    font-family: monospace;
+    font-size: 0.75rem;
+    color: var(--gray-600);
+    padding: 0.5rem;
+    background-color: var(--gray-50);
+    border-radius: 4px;
+}
+
+.certificate-status {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem;
+    border-radius: 4px;
+    font-size: 0.875rem;
+    font-weight: 600;
+    cursor: help;
+}
+
+.certificate-status-valid {
+    background-color: #d1fae5;
+    color: #065f46;
+    border: 1.5px solid #10b981;
+}
+
+.certificate-status-warning {
+    background-color: #fef3c7;
+    color: #92400e;
+    border: 1.5px solid #f59e0b;
+}
+
+.certificate-status-expired {
+    background-color: #fee2e2;
+    color: #991b1b;
+    border: 1.5px solid #ef4444;
+}
+
+.certificate-status-error {
+    background-color: #fee2e2;
+    color: #991b1b;
+    border: 1.5px solid #ef4444;
+}
+
+.certificate-status-unknown {
+    background-color: var(--gray-100);
+    color: var(--gray-600);
+    border: 1.5px solid var(--gray-300);
+}
+
+.certificate-icon {
+    font-size: 1rem;
+    line-height: 1;
+}
+
+.certificate-text {
+    flex: 1;
+}
+
+.certificate-error-msg {
+    font-size: 0.75rem;
+    opacity: 0.9;
+    font-weight: normal;
+}
+
+.certificate-box {
+    background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+}
+
 /* Connection Metrics Section */
 .connections-section {
     grid-column: 1 / 2;

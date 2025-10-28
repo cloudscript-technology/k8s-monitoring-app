@@ -171,6 +171,74 @@
                 {{ end }}
             </div>
         </div>
+
+        <!-- Certificate Metric -->
+        <div class="metric-box certificate-box">
+            <div class="metric-label">🔒 certificate</div>
+            <div class="metric-value">
+                {{ $certMetric := index .MetricsByType "IngressCertificate" }}
+                {{ if and $certMetric $certMetric.LatestValue }}
+                {{ $status := index $certMetric.LatestValue.Value "certificate_status" }}
+                {{ $daysToExpire := index $certMetric.LatestValue.Value "certificate_days_to_expire" }}
+                {{ $expiration := index $certMetric.LatestValue.Value "certificate_expiration" }}
+                {{ $domains := index $certMetric.LatestValue.Value "certificate_domains" }}
+                {{ $issuer := index $certMetric.LatestValue.Value "certificate_issuer" }}
+                {{ $error := index $certMetric.LatestValue.Value "certificate_error" }}
+
+                <div class="certificate-container">
+                    {{ if $domains }}
+                    <div class="certificate-domains">
+                        {{ range $domains }}
+                        <span class="domain-badge">{{ . }}</span>
+                        {{ end }}
+                    </div>
+                    {{ end }}
+
+                    {{ if eq $status "valid" }}
+                    <div class="certificate-status certificate-status-valid"
+                        title="Certificate valid - Expires: {{ $expiration }}{{ if $issuer }} - Issued by: {{ $issuer }}{{ end }}">
+                        <span class="certificate-icon">✓</span>
+                        <span class="certificate-text">Valid for {{ $daysToExpire }} days</span>
+                    </div>
+                    {{ else if eq $status "expiring_soon" }}
+                    <div class="certificate-status certificate-status-warning"
+                        title="Certificate expiring soon - Expires: {{ $expiration }}{{ if $issuer }} - Issued by: {{ $issuer }}{{ end }}">
+                        <span class="certificate-icon">⚠</span>
+                        <span class="certificate-text">Expires in {{ $daysToExpire }} days</span>
+                    </div>
+                    {{ else if eq $status "expired" }}
+                    <div class="certificate-status certificate-status-expired"
+                        title="Certificate expired on: {{ $expiration }}{{ if $issuer }} - Issued by: {{ $issuer }}{{ end }}">
+                        <span class="certificate-icon">✗</span>
+                        <span class="certificate-text">Expired {{ $daysToExpire }} days ago</span>
+                    </div>
+                    {{ else if eq $status "not_found" }}
+                    <div class="certificate-status certificate-status-error" title="{{ $error }}">
+                        <span class="certificate-icon">⚠</span>
+                        <span class="certificate-text">Not found</span>
+                    </div>
+                    {{ else }}
+                    <div class="certificate-status certificate-status-error" title="{{ $error }}">
+                        <span class="certificate-icon">✗</span>
+                        <span class="certificate-text">Error</span>
+                        {{ if $error }}<span class="certificate-error-msg">{{ $error }}</span>{{ end }}
+                    </div>
+                    {{ end }}
+                </div>
+                {{ else if and $certMetric $certMetric.Configuration }}
+                {{ $ingressName := index $certMetric.Configuration "ingress_name" }}
+                <div class="certificate-container">
+                    <div class="certificate-ingress">{{ $ingressName }}</div>
+                    <div class="certificate-status certificate-status-unknown">
+                        <span class="certificate-icon">⏱</span>
+                        <span class="certificate-text">waiting for data...</span>
+                    </div>
+                </div>
+                {{ else }}
+                <div class="certificate-text">Not configured</div>
+                {{ end }}
+            </div>
+        </div>
     </div>
 
     <!-- Connection Metrics Section -->

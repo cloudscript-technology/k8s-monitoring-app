@@ -159,6 +159,8 @@ func (m *MonitoringService) collectMetricByType(
 		metricValue = m.collectMySQLConnection(ctx, &config)
 	case "KongConnection":
 		metricValue = m.collectKongConnection(ctx, &config)
+	case "IngressCertificate":
+		metricValue, err = m.collectIngressCertificate(ctx, application, &config)
 	default:
 		return fmt.Errorf("unknown metric type: %s", metricType.Name)
 	}
@@ -534,6 +536,47 @@ func (m *MonitoringService) collectKongConnection(
 	config *applicationMetricModel.Configuration,
 ) applicationMetricValueModel.MetricValue {
 	return connections.TestKongConnection(ctx, config)
+}
+
+// collectIngressCertificate collects certificate information from an Ingress
+func (m *MonitoringService) collectIngressCertificate(
+	ctx context.Context,
+	application *applicationModel.Application,
+	config *applicationMetricModel.Configuration,
+) (applicationMetricValueModel.MetricValue, error) {
+	// Determine namespace (use application namespace if not specified)
+	namespace := config.IngressNamespace
+	if namespace == "" {
+		namespace = application.Namespace
+	}
+
+	// Get warning threshold (default: 30 days)
+	warningDays := config.WarningDays
+	if warningDays <= 0 {
+		warningDays = 30
+	}
+
+	// Get certificate information
+	certInfo, err := m.k8sClient.GetIngressCertificateInfo(
+		ctx,
+		namespace,
+		config.IngressName,
+		config.TLSSecretName,
+		warningDays,
+	)
+	if err != nil {
+		return applicationMetricValueModel.MetricValue{}, fmt.Errorf("failed to get certificate info: %w", err)
+	}
+
+	return applicationMetricValueModel.MetricValue{
+		CertificateStatus:       certInfo.Status,
+		CertificateExpiration:   certInfo.Expiration,
+		CertificateDaysToExpire: certInfo.DaysToExpire,
+		CertificateIssuer:       certInfo.Issuer,
+		CertificateSubject:      certInfo.Subject,
+		CertificateDomains:      certInfo.Domains,
+		CertificateError:        certInfo.ErrorMessage,
+	}, nil
 }
 
 // cleanupOldMetrics removes metric values older than the configured retention period

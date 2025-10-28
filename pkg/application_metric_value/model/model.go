@@ -50,6 +50,15 @@ type MetricValue struct {
 	ConnectionVersion    string `json:"connection_version,omitempty"`      // Database/Service version
 	ConnectionInfo       string `json:"connection_info,omitempty"`         // Additional connection information
 	ConnectionPingTimeMs int64  `json:"connection_ping_time_ms,omitempty"` // Ping/query time
+
+	// For IngressCertificate
+	CertificateStatus       string    `json:"certificate_status,omitempty"`         // "valid", "expiring_soon", "expired", "not_found", "error"
+	CertificateExpiration   time.Time `json:"certificate_expiration,omitempty"`     // Certificate expiration date
+	CertificateDaysToExpire int       `json:"certificate_days_to_expire,omitempty"` // Days until expiration (negative if expired)
+	CertificateIssuer       string    `json:"certificate_issuer,omitempty"`         // Certificate issuer
+	CertificateSubject      string    `json:"certificate_subject,omitempty"`        // Certificate subject/CN
+	CertificateDomains      []string  `json:"certificate_domains,omitempty"`        // DNS names in certificate
+	CertificateError        string    `json:"certificate_error,omitempty"`          // Error message if any
 }
 
 // NodeInfo contains detailed information about a node

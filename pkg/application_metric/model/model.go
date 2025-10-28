@@ -31,15 +31,21 @@ type Configuration struct {
 	ConnectionDatabase string `json:"connection_database,omitempty"` // Database name (for PostgreSQL, MySQL, MongoDB)
 	ConnectionSSL      bool   `json:"connection_ssl,omitempty"`      // Use SSL/TLS connection
 	ConnectionTimeout  int    `json:"connection_timeout,omitempty"`  // Connection timeout in seconds (default: 5)
-	
+
 	// For MongoDB
 	ConnectionAuthSource string `json:"connection_auth_source,omitempty"` // Auth database for MongoDB (default: admin)
-	
+
 	// For Redis
 	ConnectionDB int `json:"connection_db,omitempty"` // Redis database number (default: 0)
-	
+
 	// For Kong
 	KongAdminURL string `json:"kong_admin_url,omitempty"` // Kong Admin API URL
+
+	// For IngressCertificate
+	IngressName      string `json:"ingress_name,omitempty"`      // Name of the Ingress resource
+	IngressNamespace string `json:"ingress_namespace,omitempty"` // Namespace (if different from application namespace)
+	TLSSecretName    string `json:"tls_secret_name,omitempty"`   // TLS secret name (optional, auto-discovered if not provided)
+	WarningDays      int    `json:"warning_days,omitempty"`      // Days before expiration to warn (default: 30)
 }
 
 type ApplicationMetric struct {

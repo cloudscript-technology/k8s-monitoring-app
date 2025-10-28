@@ -3,6 +3,8 @@ package k8s
 import (
 	"bytes"
 	"context"
+	"crypto/x509"
+	"encoding/pem"
 	"fmt"
 	"io"
 	"net/http"
@@ -13,6 +15,7 @@ import (
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
+	networkingv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
@@ -491,4 +494,144 @@ func (c *Client) PerformHealthCheck(ctx context.Context, url, method string, exp
 	}
 
 	return result
+}
+
+// IngressCertificateInfo contains information about an Ingress TLS certificate
+type IngressCertificateInfo struct {
+	Status       string    // "valid", "expiring_soon", "expired", "not_found", "error"
+	Expiration   time.Time // Certificate expiration date
+	DaysToExpire int       // Days until expiration (negative if expired)
+	Issuer       string    // Certificate issuer
+	Subject      string    // Certificate subject/CN
+	Domains      []string  // DNS names in certificate
+	ErrorMessage string    // Error message if any
+}
+
+// GetIngressCertificateInfo retrieves certificate information from an Ingress resource
+func (c *Client) GetIngressCertificateInfo(ctx context.Context, namespace, ingressName, tlsSecretName string, warningDays int) (*IngressCertificateInfo, error) {
+	if warningDays <= 0 {
+		warningDays = 30 // Default warning threshold
+	}
+
+	// Get the Ingress resource
+	ingress, err := c.clientset.NetworkingV1().Ingresses(namespace).Get(ctx, ingressName, metav1.GetOptions{})
+	if err != nil {
+		return &IngressCertificateInfo{
+			Status:       "not_found",
+			ErrorMessage: fmt.Sprintf("ingress not found: %v", err),
+		}, nil
+	}
+
+	// If TLS secret name not provided, get it from Ingress
+	if tlsSecretName == "" {
+		if len(ingress.Spec.TLS) == 0 {
+			return &IngressCertificateInfo{
+				Status:       "not_found",
+				ErrorMessage: "no TLS configuration found in ingress",
+			}, nil
+		}
+		tlsSecretName = ingress.Spec.TLS[0].SecretName
+	}
+
+	// Get the TLS secret
+	secret, err := c.clientset.CoreV1().Secrets(namespace).Get(ctx, tlsSecretName, metav1.GetOptions{})
+	if err != nil {
+		return &IngressCertificateInfo{
+			Status:       "not_found",
+			ErrorMessage: fmt.Sprintf("TLS secret not found: %v", err),
+		}, nil
+	}
+
+	// Get the certificate from the secret
+	certData, ok := secret.Data["tls.crt"]
+	if !ok {
+		return &IngressCertificateInfo{
+			Status:       "error",
+			ErrorMessage: "tls.crt not found in secret",
+		}, nil
+	}
+
+	// Parse the certificate
+	certInfo, err := parseCertificate(certData, warningDays)
+	if err != nil {
+		return &IngressCertificateInfo{
+			Status:       "error",
+			ErrorMessage: fmt.Sprintf("failed to parse certificate: %v", err),
+		}, nil
+	}
+
+	// Enrich with domains from Ingress if not present in cert
+	if len(certInfo.Domains) == 0 {
+		certInfo.Domains = extractDomainsFromIngress(ingress)
+	}
+
+	return certInfo, nil
+}
+
+// parseCertificate parses a PEM-encoded certificate and extracts relevant information
+func parseCertificate(certData []byte, warningDays int) (*IngressCertificateInfo, error) {
+	block, _ := pem.Decode(certData)
+	if block == nil {
+		return nil, fmt.Errorf("failed to decode PEM certificate")
+	}
+
+	cert, err := x509.ParseCertificate(block.Bytes)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse certificate: %w", err)
+	}
+
+	now := time.Now()
+	daysToExpire := int(time.Until(cert.NotAfter).Hours() / 24)
+
+	// Determine status
+	status := "valid"
+	if now.After(cert.NotAfter) {
+		status = "expired"
+	} else if daysToExpire <= warningDays {
+		status = "expiring_soon"
+	}
+
+	// Extract domains (DNS SANs)
+	domains := cert.DNSNames
+	if len(domains) == 0 && cert.Subject.CommonName != "" {
+		domains = []string{cert.Subject.CommonName}
+	}
+
+	return &IngressCertificateInfo{
+		Status:       status,
+		Expiration:   cert.NotAfter,
+		DaysToExpire: daysToExpire,
+		Issuer:       cert.Issuer.CommonName,
+		Subject:      cert.Subject.CommonName,
+		Domains:      domains,
+	}, nil
+}
+
+// extractDomainsFromIngress extracts hostnames from Ingress rules
+func extractDomainsFromIngress(ingress *networkingv1.Ingress) []string {
+	domains := make([]string, 0)
+
+	// From TLS hosts
+	for _, tls := range ingress.Spec.TLS {
+		domains = append(domains, tls.Hosts...)
+	}
+
+	// From rules
+	for _, rule := range ingress.Spec.Rules {
+		if rule.Host != "" {
+			// Avoid duplicates
+			found := false
+			for _, d := range domains {
+				if d == rule.Host {
+					found = true
+					break
+				}
+			}
+			if !found {
+				domains = append(domains, rule.Host)
+			}
+		}
+	}
+
+	return domains
 }

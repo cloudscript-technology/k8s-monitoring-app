@@ -85,23 +85,23 @@
                 {{ $podTitle = printf "Pod status: %s" $phase }}
                 {{ end }}
 
-                {{ if and $nodeMetric $nodeMetric.LatestValue }}
-                {{ $activeCount := index $nodeMetric.LatestValue.Value "active_nodes_count" }}
+                {{ if and $podMetric $podMetric.LatestValue }}
+                {{ $totalPods := index $podMetric.LatestValue.Value "total_pods" }}
                 <div class="pod-indicators">
-                    {{ if eq $activeCount 1.0 }}
+                    {{ if eq $totalPods 1.0 }}
                     <span class="pod-count {{ $podClass }}" title="{{ $podTitle }}">1</span>
-                    {{ else if eq $activeCount 2.0 }}
-                    <span class="pod-count {{ $podClass }}" title="{{ $podTitle }}">1</span>
-                    <span class="pod-count {{ $podClass }}" title="{{ $podTitle }}">2</span>
-                    {{ else if eq $activeCount 3.0 }}
+                    {{ else if eq $totalPods 2.0 }}
                     <span class="pod-count {{ $podClass }}" title="{{ $podTitle }}">1</span>
                     <span class="pod-count {{ $podClass }}" title="{{ $podTitle }}">2</span>
-                    <span class="pod-count {{ $podClass }}" title="{{ $podTitle }}">3</span>
-                    {{ else if gt $activeCount 3.0 }}
+                    {{ else if eq $totalPods 3.0 }}
                     <span class="pod-count {{ $podClass }}" title="{{ $podTitle }}">1</span>
                     <span class="pod-count {{ $podClass }}" title="{{ $podTitle }}">2</span>
                     <span class="pod-count {{ $podClass }}" title="{{ $podTitle }}">3</span>
-                    <span class="pod-count-more">+{{ printf "%.0f" (sub $activeCount 3.0) }}</span>
+                    {{ else if gt $totalPods 3.0 }}
+                    <span class="pod-count {{ $podClass }}" title="{{ $podTitle }}">1</span>
+                    <span class="pod-count {{ $podClass }}" title="{{ $podTitle }}">2</span>
+                    <span class="pod-count {{ $podClass }}" title="{{ $podTitle }}">3</span>
+                    <span class="pod-count-more">+{{ printf "%.0f" (sub $totalPods 3.0) }}</span>
                     {{ else }}
                     <span class="metric-no-data">No data</span>
                     {{ end }}

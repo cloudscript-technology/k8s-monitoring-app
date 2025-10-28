@@ -10,6 +10,7 @@ import (
 	"k8s-monitoring-app/internal/connections"
 	"k8s-monitoring-app/internal/env"
 	"k8s-monitoring-app/internal/k8s"
+	"k8s-monitoring-app/internal/kafka"
 	serverModel "k8s-monitoring-app/internal/server/model"
 	applicationModel "k8s-monitoring-app/pkg/application/model"
 	applicationMetricModel "k8s-monitoring-app/pkg/application_metric/model"
@@ -161,6 +162,8 @@ func (m *MonitoringService) collectMetricByType(
 		metricValue = m.collectKongConnection(ctx, &config)
 	case "IngressCertificate":
 		metricValue, err = m.collectIngressCertificate(ctx, application, &config)
+	case "KafkaConsumerLag":
+		metricValue = m.collectKafkaConsumerLag(ctx, &config)
 	default:
 		return fmt.Errorf("unknown metric type: %s", metricType.Name)
 	}
@@ -577,6 +580,14 @@ func (m *MonitoringService) collectIngressCertificate(
 		CertificateDomains:      certInfo.Domains,
 		CertificateError:        certInfo.ErrorMessage,
 	}, nil
+}
+
+// collectKafkaConsumerLag collects Kafka consumer lag information
+func (m *MonitoringService) collectKafkaConsumerLag(
+	ctx context.Context,
+	config *applicationMetricModel.Configuration,
+) applicationMetricValueModel.MetricValue {
+	return kafka.CollectConsumerLag(ctx, config)
 }
 
 // cleanupOldMetrics removes metric values older than the configured retention period

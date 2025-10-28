@@ -887,6 +887,64 @@
                     "response": []
                 },
                 {
+                    "name": "Create KafkaConsumerLag Metric (Basic)",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"application_id\": \"{{application_id}}\",\n    \"type_id\": \"{{kafkaconsumerlag_type_id}}\",\n    \"configuration\": {\n        \"kafka_bootstrap_servers\": \"kafka:9092\",\n        \"kafka_consumer_group\": \"my-consumer-group\",\n        \"kafka_lag_threshold\": 1000\n    }\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/application-metrics",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "application-metrics"
+                            ]
+                        },
+                        "description": "Monitor Kafka consumer lag for all topics in a consumer group (basic PLAINTEXT configuration).\n\nRequired fields:\n- kafka_bootstrap_servers: Kafka broker address (required)\n- kafka_consumer_group: Consumer group name (required)\n\nOptional fields:\n- kafka_topic: Specific topic to monitor (omit to monitor all topics)\n- kafka_lag_threshold: Lag threshold for warnings (default: 1000)\n\nStatus levels:\n- ok: Total lag < threshold\n- warning: Total lag > threshold\n- critical: Total lag > threshold * 10"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Create KafkaConsumerLag Metric (With SASL)",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"application_id\": \"{{application_id}}\",\n    \"type_id\": \"{{kafkaconsumerlag_type_id}}\",\n    \"configuration\": {\n        \"kafka_bootstrap_servers\": \"kafka.production.svc.cluster.local:9092\",\n        \"kafka_consumer_group\": \"order-processor\",\n        \"kafka_topic\": \"orders\",\n        \"kafka_security_protocol\": \"SASL_PLAINTEXT\",\n        \"kafka_sasl_mechanism\": \"SCRAM-SHA-256\",\n        \"kafka_sasl_username\": \"consumer-user\",\n        \"kafka_sasl_password\": \"consumer-password\",\n        \"kafka_lag_threshold\": 500\n    }\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/application-metrics",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "application-metrics"
+                            ]
+                        },
+                        "description": "Monitor Kafka consumer lag with SASL authentication.\n\nAll fields:\n- kafka_bootstrap_servers: Kafka broker address (required)\n- kafka_consumer_group: Consumer group name (required)\n- kafka_topic: Specific topic to monitor (optional)\n- kafka_security_protocol: PLAINTEXT, SASL_PLAINTEXT, SASL_SSL, SSL (default: PLAINTEXT)\n- kafka_sasl_mechanism: PLAIN, SCRAM-SHA-256, SCRAM-SHA-512\n- kafka_sasl_username: SASL username\n- kafka_sasl_password: SASL password\n- kafka_lag_threshold: Lag threshold for warning (default: 1000)\n\nMetric collects:\n- Total lag across all partitions\n- Lag per topic\n- Lag per partition\n- Current offset vs log end offset"
+                    },
+                    "response": []
+                },
+                {
                     "name": "Update Application Metric",
                     "request": {
                         "method": "PUT",

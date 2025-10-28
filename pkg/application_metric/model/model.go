@@ -46,6 +46,16 @@ type Configuration struct {
 	IngressNamespace string `json:"ingress_namespace,omitempty"` // Namespace (if different from application namespace)
 	TLSSecretName    string `json:"tls_secret_name,omitempty"`   // TLS secret name (optional, auto-discovered if not provided)
 	WarningDays      int    `json:"warning_days,omitempty"`      // Days before expiration to warn (default: 30)
+
+	// For KafkaConsumerLag
+	KafkaBootstrapServers string `json:"kafka_bootstrap_servers,omitempty"` // Kafka bootstrap servers (e.g., "kafka:9092")
+	KafkaConsumerGroup    string `json:"kafka_consumer_group,omitempty"`    // Consumer group name
+	KafkaTopic            string `json:"kafka_topic,omitempty"`             // Topic name (optional, monitors all topics if not specified)
+	KafkaSecurityProtocol string `json:"kafka_security_protocol,omitempty"` // Security protocol: PLAINTEXT, SASL_PLAINTEXT, SASL_SSL, SSL (default: PLAINTEXT)
+	KafkaSaslMechanism    string `json:"kafka_sasl_mechanism,omitempty"`    // SASL mechanism: PLAIN, SCRAM-SHA-256, SCRAM-SHA-512
+	KafkaSaslUsername     string `json:"kafka_sasl_username,omitempty"`     // SASL username
+	KafkaSaslPassword     string `json:"kafka_sasl_password,omitempty"`     // SASL password
+	KafkaLagThreshold     int64  `json:"kafka_lag_threshold,omitempty"`     // Lag threshold for warning (default: 1000)
 }
 
 type ApplicationMetric struct {

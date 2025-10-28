@@ -290,6 +290,55 @@
                 {{ end }}
             </div>
         </div>
+
+        <!-- Kafka Lag -->
+        <div class="metric-card kafka-card">
+            <div class="metric-card-label">
+                <span class="metric-icon">📨</span>
+                <span>Kafka Lag</span>
+            </div>
+            <div class="metric-card-content">
+                {{ $kafkaMetric := index .MetricsByType "KafkaConsumerLag" }}
+                {{ if and $kafkaMetric $kafkaMetric.LatestValue }}
+                {{ $status := index $kafkaMetric.LatestValue.Value "kafka_lag_status" }}
+                {{ $totalLag := index $kafkaMetric.LatestValue.Value "kafka_total_lag" }}
+                {{ $consumerGroup := index $kafkaMetric.LatestValue.Value "kafka_consumer_group" }}
+                {{ $error := index $kafkaMetric.LatestValue.Value "kafka_error" }}
+
+                {{ if eq $status "ok" }}
+                <div class="status-badge status-ok" title="Consumer group: {{ $consumerGroup }}">
+                    <span class="status-icon">✓</span>
+                    <span class="status-text">{{ $totalLag }} msgs</span>
+                </div>
+                {{ else if eq $status "warning" }}
+                <div class="status-badge status-warning" title="Consumer group: {{ $consumerGroup }}">
+                    <span class="status-icon">⚠</span>
+                    <span class="status-text">{{ $totalLag }} msgs</span>
+                </div>
+                {{ else if eq $status "critical" }}
+                <div class="status-badge status-error" title="Consumer group: {{ $consumerGroup }}">
+                    <span class="status-icon">✗</span>
+                    <span class="status-text">{{ $totalLag }} msgs</span>
+                </div>
+                {{ else }}
+                <div class="status-badge status-error" title="{{ $error }}">
+                    <span class="status-icon">✗</span>
+                    <span class="status-text">Error</span>
+                </div>
+                {{ end }}
+                {{ if $consumerGroup }}
+                <div class="metric-detail">{{ $consumerGroup }}</div>
+                {{ end }}
+                {{ else if and $kafkaMetric $kafkaMetric.Configuration }}
+                <div class="status-badge status-unknown">
+                    <span class="status-icon">⏱</span>
+                    <span class="status-text">Waiting...</span>
+                </div>
+                {{ else }}
+                <span class="metric-no-data">Not configured</span>
+                {{ end }}
+            </div>
+        </div>
     </div>
 
     <!-- Connection Metrics (if any) -->

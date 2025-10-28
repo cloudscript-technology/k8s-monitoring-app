@@ -59,6 +59,28 @@ type MetricValue struct {
 	CertificateSubject      string    `json:"certificate_subject,omitempty"`        // Certificate subject/CN
 	CertificateDomains      []string  `json:"certificate_domains,omitempty"`        // DNS names in certificate
 	CertificateError        string    `json:"certificate_error,omitempty"`          // Error message if any
+
+	// For KafkaConsumerLag
+	KafkaLagStatus     string          `json:"kafka_lag_status,omitempty"`     // "ok", "warning", "critical", "error"
+	KafkaTotalLag      int64           `json:"kafka_total_lag,omitempty"`      // Total lag across all partitions
+	KafkaConsumerGroup string          `json:"kafka_consumer_group,omitempty"` // Consumer group name
+	KafkaTopicLags     []KafkaTopicLag `json:"kafka_topic_lags,omitempty"`     // Lag per topic
+	KafkaError         string          `json:"kafka_error,omitempty"`          // Error message if any
+}
+
+// KafkaTopicLag represents lag information for a specific topic
+type KafkaTopicLag struct {
+	Topic         string              `json:"topic"`                    // Topic name
+	TotalLag      int64               `json:"total_lag"`                // Total lag for this topic
+	PartitionLags []KafkaPartitionLag `json:"partition_lags,omitempty"` // Lag per partition
+}
+
+// KafkaPartitionLag represents lag information for a specific partition
+type KafkaPartitionLag struct {
+	Partition     int32 `json:"partition"`      // Partition number
+	CurrentOffset int64 `json:"current_offset"` // Current consumer offset
+	LogEndOffset  int64 `json:"log_end_offset"` // Log end offset (high water mark)
+	Lag           int64 `json:"lag"`            // Difference between log end and current offset
 }
 
 // NodeInfo contains detailed information about a node

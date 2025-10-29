@@ -10,9 +10,9 @@ import (
 )
 
 type HTTPServer struct {
-	Config   *ApiServiceConfiguration
-	Api      *echo.Echo
-	Postgres *sql.DB
+	Config *ApiServiceConfiguration
+	Api    *echo.Echo
+	SQLite *sql.DB
 }
 
 type ApiServiceConfiguration struct {

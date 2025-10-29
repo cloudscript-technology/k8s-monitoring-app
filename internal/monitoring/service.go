@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"time"
 
+	"k8s-monitoring-app/internal/alerts"
 	"k8s-monitoring-app/internal/connections"
 	"k8s-monitoring-app/internal/env"
 	"k8s-monitoring-app/internal/k8s"
@@ -116,6 +117,37 @@ func (m *MonitoringService) collectMetrics() {
 				Str("application", application.Name).
 				Str("metric_type", metricType.Name).
 				Msg("failed to collect metric")
+
+			if env.SLACK_ALERTS_ENABLED && env.SLACK_WEBHOOK_URL != "" {
+				alreadySent, checkErr := m.hasSentAlertRecently(ctx, appMetric.ID)
+				if checkErr != nil {
+					log.Warn().Err(checkErr).Msg("failed to check daily alert dedup")
+				}
+				if !alreadySent {
+					// Try to get project name for richer context
+					projectName := "N/A"
+					if project, pErr := serverModel.ServerRepos.Project.Get(ctx, application.ProjectID); pErr == nil {
+						projectName = project.Name
+					}
+					// Use Slack attachment with red vertical bar (danger color)
+					fields := map[string]string{
+						"Project":     projectName,
+						"Application": application.Name,
+						"Namespace":   application.Namespace,
+						"Metric":      metricType.Name,
+						"Error":       err.Error(),
+					}
+					if postErr := alerts.SendSlackAlert(ctx, env.SLACK_WEBHOOK_URL, "Metric collection error", fields, ""); postErr != nil {
+						log.Warn().Err(postErr).Msg("failed to post Slack alert for collection error")
+					} else {
+						if markErr := m.markAlertSentNow(ctx, appMetric.ID, fmt.Sprintf("collection_error:%s", metricType.Name)); markErr != nil {
+							log.Warn().Err(markErr).Msg("failed to mark daily alert sent")
+						}
+					}
+				} else {
+					log.Debug().Str("application", application.Name).Str("metric_type", metricType.Name).Msg("skipping Slack alert (collection error already notified today)")
+				}
+			}
 		}
 	}
 
@@ -172,6 +204,41 @@ func (m *MonitoringService) collectMetricByType(
 		return err
 	}
 
+	// Send Slack alert on failure conditions with daily deduplication per metric
+	if env.SLACK_ALERTS_ENABLED && env.SLACK_WEBHOOK_URL != "" {
+		if alert, reason := shouldAlert(metricType.Name, metricValue); alert {
+			alreadySent, checkErr := m.hasSentAlertRecently(ctx, appMetric.ID)
+			if checkErr != nil {
+				log.Warn().Err(checkErr).Msg("failed to check daily alert dedup")
+			}
+			if !alreadySent {
+				// Try to get project name for richer context
+				projectName := "N/A"
+				if project, pErr := serverModel.ServerRepos.Project.Get(ctx, application.ProjectID); pErr == nil {
+					projectName = project.Name
+				}
+				// Use Slack attachment with red vertical bar (danger color)
+				fields := map[string]string{
+					"Project":     projectName,
+					"Application": application.Name,
+					"Namespace":   application.Namespace,
+					"Metric":      metricType.Name,
+					"Reason":      reason,
+				}
+				// Best-effort: log warnings but don't block collection
+				if err := alerts.SendSlackAlert(ctx, env.SLACK_WEBHOOK_URL, "Metric failure detected", fields, ""); err != nil {
+					log.Warn().Err(err).Msg("failed to post Slack alert")
+				} else {
+					if markErr := m.markAlertSentNow(ctx, appMetric.ID, fmt.Sprintf("failure:%s", metricType.Name)); markErr != nil {
+						log.Warn().Err(markErr).Msg("failed to mark daily alert sent")
+					}
+				}
+			} else {
+				log.Debug().Str("application", application.Name).Str("metric_type", metricType.Name).Msg("skipping Slack alert (metric failure already notified today)")
+			}
+		}
+	}
+
 	// Store the metric value
 	return m.storeMetricValue(ctx, appMetric.ID, metricValue)
 }
@@ -226,11 +293,12 @@ func (m *MonitoringService) collectPodStatus(
 	podInfos := make([]applicationMetricValueModel.PodInfo, 0, len(pods.Items))
 
 	for _, pod := range pods.Items {
-		if pod.Status.Phase == corev1.PodRunning {
+		switch pod.Status.Phase {
+		case corev1.PodRunning:
 			runningPods++
-		} else if pod.Status.Phase == corev1.PodFailed {
+		case corev1.PodFailed:
 			hasFailedPods = true
-		} else if pod.Status.Phase == corev1.PodPending {
+		case corev1.PodPending:
 			hasPendingPods = true
 		}
 
@@ -618,4 +686,101 @@ func (m *MonitoringService) cleanupOldMetrics() {
 		Int64("deleted_records", rowsAffected).
 		Int("retention_days", retentionDays).
 		Msg("Metrics cleanup completed")
+}
+
+// hasSentAlertRecently checks if an alert for a given application metric
+// was sent within the configured deduplication window (in minutes).
+func (m *MonitoringService) hasSentAlertRecently(ctx context.Context, applicationMetricID string) (bool, error) {
+	// Cutoff time based on configured window
+	minutes := env.SLACK_ALERTS_DEDUP_MINUTES
+	if minutes <= 0 {
+		minutes = 10
+	}
+	cutoff := time.Now().Add(-time.Duration(minutes) * time.Minute)
+
+	// Check for any record within the window
+	var exists int
+	query := `SELECT 1 FROM alerts_sent_daily WHERE application_metric_id = ? AND created_at >= ? LIMIT 1`
+	err := m.db.QueryRowContext(ctx, query, applicationMetricID, cutoff).Scan(&exists)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return false, nil
+		}
+		return false, err
+	}
+	return true, nil
+}
+
+// markAlertSentNow records (or updates) an alert send for the current day,
+// and updates created_at so subsequent checks see the latest send time.
+func (m *MonitoringService) markAlertSentNow(ctx context.Context, applicationMetricID string, reason string) error {
+	// Use current UTC date to satisfy the daily unique constraint
+	alertDate := time.Now().UTC().Format("2006-01-02")
+	// Upsert to bump created_at when a row for today already exists
+	query := `
+        INSERT INTO alerts_sent_daily (application_metric_id, alert_date, alert_reason)
+        VALUES (?, ?, ?)
+        ON CONFLICT(application_metric_id, alert_date)
+        DO UPDATE SET created_at = CURRENT_TIMESTAMP, alert_reason = excluded.alert_reason
+    `
+	_, err := m.db.ExecContext(ctx, query, applicationMetricID, alertDate, reason)
+	return err
+}
+
+// shouldAlert determines if a metric value represents a failure that warrants alerting
+func shouldAlert(metricTypeName string, v applicationMetricValueModel.MetricValue) (bool, string) {
+	switch metricTypeName {
+	case "HealthCheck":
+		if v.Status == "down" || v.StatusCode >= 400 {
+			reason := "healthcheck down"
+			if v.StatusCode > 0 {
+				reason = fmt.Sprintf("status %d", v.StatusCode)
+			}
+			if v.ErrorMessage != "" {
+				reason = fmt.Sprintf("%s - %s", reason, v.ErrorMessage)
+			}
+			return true, reason
+		}
+		return false, ""
+	case "PodStatus":
+		if !v.PodReady || (v.PodPhase != "Running") {
+			reason := fmt.Sprintf("phase=%s ready=%t (%d/%d ready)", v.PodPhase, v.PodReady, v.ReadyPods, v.TotalPods)
+			return true, reason
+		}
+		return false, ""
+	case "IngressCertificate":
+		if v.CertificateStatus == "expired" || v.CertificateStatus == "error" || v.CertificateStatus == "not_found" {
+			reason := v.CertificateStatus
+			if v.CertificateError != "" {
+				reason = fmt.Sprintf("%s - %s", reason, v.CertificateError)
+			}
+			return true, reason
+		}
+		// Optionally alert on expiring soon
+		if v.CertificateStatus == "expiring_soon" {
+			return true, fmt.Sprintf("certificate expiring in %d days", v.CertificateDaysToExpire)
+		}
+		return false, ""
+	case "KafkaConsumerLag":
+		if v.KafkaLagStatus == "critical" || v.KafkaLagStatus == "error" {
+			reason := fmt.Sprintf("lag=%d group=%s", v.KafkaTotalLag, v.KafkaConsumerGroup)
+			if v.KafkaError != "" {
+				reason = fmt.Sprintf("%s - %s", reason, v.KafkaError)
+			}
+			return true, reason
+		}
+		return false, ""
+	case "RedisConnection", "PostgreSQLConnection", "MongoDBConnection", "MySQLConnection", "KongConnection":
+		if v.ConnectionStatus != "connected" {
+			reason := v.ConnectionStatus
+			if v.ConnectionError != "" {
+				reason = fmt.Sprintf("%s - %s", reason, v.ConnectionError)
+			}
+			return true, reason
+		}
+		return false, ""
+	default:
+		// Resource usage metrics currently have no thresholds configured
+		return false, ""
+	}
 }

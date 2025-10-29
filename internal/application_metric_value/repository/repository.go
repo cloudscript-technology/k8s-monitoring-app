@@ -37,7 +37,7 @@ func (repo *repository) Get(ctx context.Context, id string) (applicationMetricVa
 		amv.id, amv.application_metric_id, amv.value, amv.created_at, amv.updated_at
 	FROM 
 		application_metric_values amv
-	WHERE amv.id = $1`
+    WHERE amv.id = ?`
 
 	err := repo.db.QueryRowContext(ctx, sqlString, id).Scan(
 		&applicationMetricValue.ID, &applicationMetricValue.ApplicationMetricID,
@@ -58,7 +58,7 @@ func (repo *repository) ListByApplicationMetric(ctx context.Context, application
 		id, application_metric_id, value, created_at, updated_at
 	FROM
 		application_metric_values
-	WHERE application_metric_id = $1
+    WHERE application_metric_id = ?
 	ORDER BY created_at DESC`
 
 	if limit > 0 {

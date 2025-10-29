@@ -121,9 +121,9 @@ CREATE TABLE sessions (
     user_name VARCHAR(255) NOT NULL,
     access_token TEXT NOT NULL,
     refresh_token TEXT,
-    token_expiry TIMESTAMP,
-    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
-    expires_at TIMESTAMP NOT NULL
+    token_expiry DATETIME,
+    created_at DATETIME NOT NULL DEFAULT (DATETIME('now')),
+    expires_at DATETIME NOT NULL
 );
 ```
 
@@ -377,4 +377,3 @@ For issues or questions:
 2. Verify all environment variables are correctly set
 3. Ensure the Google Cloud Console configuration matches your setup
 4. Contact your system administrator for access issues
-

@@ -24,10 +24,10 @@ func main() {
 		log.Error().Msg("Erro ao criar servidor")
 		os.Exit(1)
 	}
-	defer httpServer.Postgres.Close()
+	defer httpServer.SQLite.Close()
 
 	// Initialize and start monitoring service
-	monitoringSvc, err := monitoring.NewMonitoringService(httpServer.Postgres)
+	monitoringSvc, err := monitoring.NewMonitoringService(httpServer.SQLite)
 	if err != nil {
 		log.Error().Msg("Erro ao criar serviço de monitoramento")
 		os.Exit(1)

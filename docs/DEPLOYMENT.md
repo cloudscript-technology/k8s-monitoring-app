@@ -4,7 +4,7 @@
 
 1. **Kubernetes Cluster**: A running Kubernetes cluster (v1.20+)
 2. **Metrics Server**: Installed and running in the cluster
-3. **PostgreSQL Database**: Accessible from the cluster
+3. **SQLite Storage**: Optional PersistentVolumeClaim for persisting the SQLite DB file
 4. **kubectl**: Configured to access your cluster
 5. **Helm** (optional): For easier deployment using the provided chart
 
@@ -75,12 +75,8 @@ kubectl apply -f rbac.yaml
 The application requires the following environment variables:
 
 ```bash
-# Database Configuration
-DB_HOST=postgres.default.svc.cluster.local
-DB_PORT=5432
-DB_USER=monitoring
-DB_PASSWORD=secure_password
-DB_NAME=k8s_monitoring
+# Database Configuration (SQLite)
+DB_PATH=/data/k8s_monitoring.db
 
 # APM Configuration (optional)
 ELASTIC_APM_SERVICE_NAME=k8s-monitoring-app
@@ -104,24 +100,24 @@ metadata:
   name: k8s-monitoring-app-config
   namespace: default
 data:
-  DB_HOST: "postgres.default.svc.cluster.local"
-  DB_PORT: "5432"
-  DB_NAME: "k8s_monitoring"
-  DB_USER: "monitoring"
+  DB_PATH: "/data/k8s_monitoring.db"
   LOG_LEVEL: "info"
 ```
 
-#### 2. Create Secret for Sensitive Data
+#### 2. Create PersistentVolumeClaim (for SQLite persistence)
 
 ```yaml
 apiVersion: v1
-kind: Secret
+kind: PersistentVolumeClaim
 metadata:
-  name: k8s-monitoring-app-secret
+  name: k8s-monitoring-app-pvc
   namespace: default
-type: Opaque
-stringData:
-  DB_PASSWORD: "your_secure_password_here"
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
 ```
 
 #### 3. Create Deployment
@@ -155,8 +151,9 @@ spec:
         envFrom:
         - configMapRef:
             name: k8s-monitoring-app-config
-        - secretRef:
-            name: k8s-monitoring-app-secret
+        volumeMounts:
+        - name: data
+          mountPath: /data
         resources:
           requests:
             memory: "256Mi"
@@ -176,6 +173,10 @@ spec:
             port: 8080
           initialDelaySeconds: 5
           periodSeconds: 5
+      volumes:
+      - name: data
+        persistentVolumeClaim:
+          claimName: k8s-monitoring-app-pvc
 ```
 
 #### 4. Create Service
@@ -282,19 +283,17 @@ resources:
     memory: 256Mi
 
 env:
-  - name: DB_HOST
-    value: "postgres.default.svc.cluster.local"
-  - name: DB_PORT
-    value: "5432"
-  - name: DB_NAME
-    value: "k8s_monitoring"
-  - name: DB_USER
-    value: "monitoring"
-  - name: DB_PASSWORD
-    valueFrom:
-      secretKeyRef:
-        name: postgres-secret
-        key: password
+  - name: DB_PATH
+    value: "/data/k8s_monitoring.db"
+
+volumeMounts:
+  - name: data
+    mountPath: /data
+
+volumes:
+  - name: data
+    persistentVolumeClaim:
+      claimName: k8s-monitoring-app-pvc
 ```
 
 #### 2. Install with Helm
@@ -314,13 +313,9 @@ helm upgrade k8s-monitoring-app ./chart \
 
 ## Database Setup
 
-### PostgreSQL Initialization
+### SQLite Initialization
 
-The application uses PostgreSQL with automatic migrations. Ensure your database has the `uuid-ossp` extension:
-
-```sql
-CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
-```
+The application uses SQLite with automatic migrations. No external database server is required. The database file will be created at the path configured in `DB_PATH` (e.g., `/data/k8s_monitoring.db`).
 
 ### Migration Path
 
@@ -390,12 +385,13 @@ kubectl apply -f https://github.com/kubernetes-sigs/metrics-server/releases/late
 
 ### Database Connection Issues
 
-**Symptom**: "failed to connect to database"
+**Symptom**: "failed to open SQLite database"
 
 **Solution**:
-- Verify database credentials
-- Check network connectivity to database
-- Ensure database exists and migrations can run
+- Verify `DB_PATH` is set correctly
+- Ensure the pod has write permissions to the mounted path
+- Confirm the PVC is bound and mounted
+- Check that migrations run without errors in logs
 
 ### Memory/CPU Metrics Not Available
 
@@ -408,7 +404,7 @@ kubectl apply -f https://github.com/kubernetes-sigs/metrics-server/releases/late
 
 ## Security Considerations
 
-1. **Database Credentials**: Store in Kubernetes Secrets, not in ConfigMaps
+1. **SQLite File Access**: Limit access to the mounted volume via RBAC and PVC policies
 2. **RBAC**: Use the minimal required permissions
 3. **Network Policies**: Restrict access to the monitoring app
 4. **TLS**: Enable TLS for ingress endpoints
@@ -444,11 +440,12 @@ Set up alerts for:
 
 ### Database Backups
 ```bash
-# Export database
-kubectl exec -it postgres-pod -- pg_dump -U monitoring k8s_monitoring > backup.sql
+# Backup SQLite DB file from pod
+POD=$(kubectl get pods -l app=k8s-monitoring-app -o jsonpath='{.items[0].metadata.name}')
+kubectl cp default/$POD:/data/k8s_monitoring.db ./backup/k8s_monitoring.db
 
-# Import database
-kubectl exec -i postgres-pod -- psql -U monitoring k8s_monitoring < backup.sql
+# Restore SQLite DB file to pod
+kubectl cp ./backup/k8s_monitoring.db default/$POD:/data/k8s_monitoring.db
 ```
 
 ### Configuration Backup
@@ -475,7 +472,6 @@ helm uninstall k8s-monitoring-app --namespace default
 
 ### Remove Database Data
 ```bash
-# Connect to database and drop tables
-kubectl exec -it postgres-pod -- psql -U monitoring k8s_monitoring -c "DROP SCHEMA public CASCADE; CREATE SCHEMA public;"
+# Delete PVC to remove persisted data (careful!)
+kubectl delete pvc k8s-monitoring-app-pvc -n default
 ```
-

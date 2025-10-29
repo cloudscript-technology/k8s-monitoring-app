@@ -5,7 +5,7 @@ Este guia explica como executar e testar a aplicação localmente no seu Mac usa
 ## Pré-requisitos
 
 1. **Go 1.24+** instalado
-2. **PostgreSQL** rodando localmente
+2. **SQLite** (embutido; nenhum serviço externo necessário)
 3. **Acesso a um cluster Kubernetes** (pode ser Minikube, Kind, Docker Desktop, ou um cluster remoto)
 4. **kubectl** configurado e funcionando
 5. **metrics-server** instalado no cluster
@@ -33,12 +33,8 @@ kubectl get pods --all-namespaces
 Crie um arquivo `.env` na raiz do projeto:
 
 ```bash
-# Database Configuration (PostgreSQL local)
-DB_HOST=localhost
-DB_PORT=5432
-DB_USER=monitoring
-DB_PASSWORD=monitoring123
-DB_NAME=k8s_monitoring
+# Database Configuration (SQLite)
+DB_PATH=./data/k8s_monitoring.db
 
 # Kubernetes Configuration (OPCIONAL - se não definir, usa ~/.kube/config automaticamente)
 # KUBECONFIG=/Users/seu-usuario/.kube/config
@@ -50,48 +46,14 @@ LOG_LEVEL=debug
 ELASTIC_APM_ACTIVE=false
 ```
 
-### 3. Configurar PostgreSQL Local
-
-#### Usando Docker
+### 3. Preparar SQLite
 
 ```bash
-# Iniciar PostgreSQL com Docker
-docker run --name postgres-monitoring \
-  -e POSTGRES_USER=monitoring \
-  -e POSTGRES_PASSWORD=monitoring123 \
-  -e POSTGRES_DB=k8s_monitoring \
-  -p 5432:5432 \
-  -d postgres:15
+# Criar diretório de dados (se ainda não existir)
+mkdir -p ./data
 
-# Criar extensão uuid
-docker exec -it postgres-monitoring psql -U monitoring -d k8s_monitoring -c "CREATE EXTENSION IF NOT EXISTS \"uuid-ossp\";"
-```
-
-#### Usando PostgreSQL Nativo (Homebrew)
-
-```bash
-# Instalar PostgreSQL (se ainda não tiver)
-brew install postgresql@15
-
-# Iniciar PostgreSQL
-brew services start postgresql@15
-
-# Criar usuário e database
-psql postgres -c "CREATE USER monitoring WITH PASSWORD 'monitoring123';"
-psql postgres -c "CREATE DATABASE k8s_monitoring OWNER monitoring;"
-psql -U monitoring -d k8s_monitoring -c "CREATE EXTENSION IF NOT EXISTS \"uuid-ossp\";"
-```
-
-#### Usando docker-compose
-
-O projeto já inclui um `docker-compose.yaml`. Use:
-
-```bash
-# Iniciar apenas o PostgreSQL
-docker-compose up -d postgres
-
-# Ver logs
-docker-compose logs -f postgres
+# Opcional: criar arquivo do banco (a aplicação cria automaticamente se não existir)
+touch ./data/k8s_monitoring.db
 ```
 
 ## Como Funciona a Detecção de Kubeconfig
@@ -153,11 +115,7 @@ Crie um arquivo `run-local.sh`:
 #!/bin/bash
 
 # Load environment variables
-export DB_HOST=localhost
-export DB_PORT=5432
-export DB_USER=monitoring
-export DB_PASSWORD=monitoring123
-export DB_NAME=k8s_monitoring
+export DB_PATH=./data/k8s_monitoring.db
 export LOG_LEVEL=debug
 
 # Optional: specify kubeconfig explicitly
@@ -525,4 +483,3 @@ Content-Type: application/json
   "description": "Testing"
 }
 ```
-

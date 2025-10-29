@@ -9,12 +9,16 @@ import (
 )
 
 var (
-	ENV                         string
-	DB_CONNECTION_STRING        string
-	ADMIN_TOKEN                 string
-	METRICS_RETENTION_DAYS      int
-	METRICS_CLEANUP_INTERVAL    string
-	METRICS_COLLECTION_INTERVAL int // Collection interval in seconds (default: 60)
+    ENV                         string
+    DB_PATH                     string
+    METRICS_RETENTION_DAYS      int
+    METRICS_CLEANUP_INTERVAL    string
+    METRICS_COLLECTION_INTERVAL int // Collection interval in seconds (default: 60)
+
+    // Slack Alerts Configuration
+    SLACK_WEBHOOK_URL    string
+    SLACK_ALERTS_ENABLED bool
+    SLACK_ALERTS_DEDUP_MINUTES int // Deduplication window in minutes (default: 10)
 
 	// OAuth Configuration
 	GOOGLE_CLIENT_ID       string
@@ -54,8 +58,31 @@ func GetEnv() error {
 	}
 
 	ENV = os.Getenv("ENV")
-	DB_CONNECTION_STRING = os.Getenv("DB_CONNECTION_STRING")
-	ADMIN_TOKEN = os.Getenv("ADMIN_TOKEN")
+	DB_PATH = os.Getenv("DB_PATH")
+
+    // Slack Alerts Configuration
+    SLACK_WEBHOOK_URL = os.Getenv("SLACK_WEBHOOK_URL")
+    if v := os.Getenv("SLACK_ALERTS_ENABLED"); v != "" {
+        // Accept true/false in various casings
+        SLACK_ALERTS_ENABLED = v == "1" || v == "true" || v == "TRUE" || v == "True"
+    } else {
+        SLACK_ALERTS_ENABLED = false
+    }
+
+    // Slack Alerts Deduplication Window
+    if v := os.Getenv("SLACK_ALERTS_DEDUP_MINUTES"); v != "" {
+        if minutes, err := strconv.Atoi(v); err == nil {
+            if minutes < 1 {
+                SLACK_ALERTS_DEDUP_MINUTES = 1
+            } else {
+                SLACK_ALERTS_DEDUP_MINUTES = minutes
+            }
+        } else {
+            SLACK_ALERTS_DEDUP_MINUTES = 10
+        }
+    } else {
+        SLACK_ALERTS_DEDUP_MINUTES = 10
+    }
 
 	// OAuth Configuration
 	GOOGLE_CLIENT_ID = os.Getenv("GOOGLE_CLIENT_ID")

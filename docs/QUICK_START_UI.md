@@ -12,14 +12,10 @@ cd /path/to/k8s-monitoring-app
 
 # Configurar variáveis de ambiente (opcional)
 export KUBECONFIG=~/.kube/config
-export DB_HOST=localhost
-export DB_PORT=5432
-export DB_USER=monitoring
-export DB_PASSWORD=monitoring
-export DB_NAME=k8s_monitoring
+export DB_PATH=./data/k8s_monitoring.db
 
-# Iniciar banco de dados (se usando docker-compose)
-docker-compose up -d postgres
+# Preparar diretório de dados (SQLite)
+mkdir -p ./data
 
 # Opção 1: Usar o script helper (RECOMENDADO)
 ./run.sh
@@ -341,4 +337,3 @@ Para popular com dados de exemplo:
 ---
 
 **Pronto! Agora você tem um dashboard completo para monitorar suas aplicações Kubernetes! 🚀**
-

@@ -39,9 +39,9 @@ func (repo *repository) Get(ctx context.Context, id string, customFieldName ...s
 	WHERE`
 
 	if len(customFieldName) > 0 {
-		sqlString = fmt.Sprintf("%s mt.%s = $1", sqlString, customFieldName[0])
+		sqlString = fmt.Sprintf("%s mt.%s = ?", sqlString, customFieldName[0])
 	} else {
-		sqlString = fmt.Sprintf("%s mt.id = $1", sqlString)
+		sqlString = fmt.Sprintf("%s mt.id = ?", sqlString)
 	}
 
 	err := repo.db.QueryRowContext(ctx, sqlString, id).Scan(

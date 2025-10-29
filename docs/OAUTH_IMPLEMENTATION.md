@@ -76,7 +76,7 @@ A autenticação OAuth 2.0 com Google foi implementada com sucesso na aplicaçã
 
 ### Sessões
 - ✅ IDs criptograficamente seguros (32 bytes aleatórios)
-- ✅ Armazenamento no PostgreSQL (server-side)
+ - ✅ Armazenamento no SQLite (server-side)
 - ✅ Expiração automática (24 horas)
 - ✅ Renovação a cada requisição
 - ✅ Limpeza automática de sessões expiradas
@@ -158,9 +158,9 @@ CREATE TABLE sessions (
     user_name VARCHAR(255) NOT NULL,
     access_token TEXT NOT NULL,
     refresh_token TEXT,
-    token_expiry TIMESTAMP,
-    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
-    expires_at TIMESTAMP NOT NULL
+    token_expiry DATETIME,
+    created_at DATETIME NOT NULL DEFAULT (DATETIME('now')),
+    expires_at DATETIME NOT NULL
 );
 
 -- Índices para performance
@@ -180,7 +180,7 @@ export GOOGLE_CLIENT_ID="..."
 export GOOGLE_CLIENT_SECRET="..."
 export GOOGLE_REDIRECT_URL="http://localhost:8080/auth/callback"
 export ALLOWED_GOOGLE_DOMAINS="empresa.com"
-export DB_CONNECTION_STRING="postgres://..."
+export DB_PATH=./data/k8s_monitoring.db
 
 # 2. Execute
 go run cmd/main.go
@@ -241,9 +241,18 @@ spec:
         env:
         - name: ENV
           value: "production"
+        - name: DB_PATH
+          value: "/data/k8s_monitoring.db"
         envFrom:
         - secretRef:
             name: k8s-monitoring-oauth
+        volumeMounts:
+        - name: data
+          mountPath: /data
+      volumes:
+      - name: data
+        persistentVolumeClaim:
+          claimName: k8s-monitoring-app-pvc
 ```
 
 ### Checklist de Produção
@@ -328,4 +337,3 @@ Para dúvidas ou problemas:
 **Versão**: 1.0.0  
 **Data**: Outubro 2025  
 **Autor**: Implementado com sucesso
-

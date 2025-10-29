@@ -10,7 +10,7 @@ import (
 
 	"github.com/go-redis/redis/v8"
 	_ "github.com/go-sql-driver/mysql"
-	_ "github.com/lib/pq"
+	"github.com/rs/zerolog/log"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 	"go.mongodb.org/mongo-driver/mongo/readpref"
@@ -309,7 +309,8 @@ func TestMongoDBConnection(ctx context.Context, config *applicationMetricModel.C
 		return result
 	}
 	defer func() {
-		if err := client.Disconnect(context.Background()); err != nil {
+		if disconnectErr := client.Disconnect(context.Background()); disconnectErr != nil {
+			log.Error().Err(disconnectErr).Msg("Error disconnecting MongoDB client")
 			// Log error but don't fail
 		}
 	}()

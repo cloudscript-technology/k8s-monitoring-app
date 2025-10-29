@@ -2,13 +2,22 @@ package application_metric
 
 import (
 	"context"
+	"crypto/rand"
 	"database/sql"
 	"fmt"
+	"time"
 
 	applicationMetricModel "k8s-monitoring-app/pkg/application_metric/model"
 
 	"github.com/rs/zerolog/log"
 )
+
+// generateUUID generates a simple UUID v4
+func generateUUID() string {
+	b := make([]byte, 16)
+	rand.Read(b)
+	return fmt.Sprintf("%x-%x-%x-%x-%x", b[0:4], b[4:6], b[6:8], b[8:10], b[10:16])
+}
 
 type Repository interface {
 	Get(ctx context.Context, id string, customFieldName ...string) (applicationMetricModel.ApplicationMetric, error)
@@ -45,9 +54,9 @@ func (repo *repository) Get(ctx context.Context, id string, customFieldName ...s
 	WHERE`
 
 	if len(customFieldName) > 0 {
-		sqlString = fmt.Sprintf("%s am.%s = $1", sqlString, customFieldName[0])
+		sqlString = fmt.Sprintf("%s am.%s = ?", sqlString, customFieldName[0])
 	} else {
-		sqlString = fmt.Sprintf("%s am.id = $1", sqlString)
+		sqlString = fmt.Sprintf("%s am.id = ?", sqlString)
 	}
 
 	err := repo.db.QueryRowContext(ctx, sqlString, id).Scan(
@@ -100,7 +109,7 @@ func (repo *repository) ListByApplication(ctx context.Context, applicationID str
 		id, application_id, type_id, configuration, created_at, updated_at
 	FROM
 		application_metrics
-	WHERE application_id = $1
+	WHERE application_id = ?
 	ORDER BY created_at DESC`
 
 	rows, err := repo.db.QueryContext(ctx, sqlString, applicationID)
@@ -125,14 +134,19 @@ func (repo *repository) ListByApplication(ctx context.Context, applicationID str
 }
 
 func (repo *repository) Add(ctx context.Context, applicationMetric *applicationMetricModel.ApplicationMetric) error {
-	sqlString := `INSERT INTO application_metrics(
-		application_id, type_id, configuration
-		) VALUES ($1, $2, $3)
-		RETURNING id, created_at, updated_at`
+	// Generate UUID manually for SQLite compatibility
+	applicationMetric.ID = generateUUID()
+	applicationMetric.CreatedAt = time.Now()
+	applicationMetric.UpdatedAt = time.Now()
 
-	err := repo.db.QueryRowContext(ctx, sqlString,
-		applicationMetric.ApplicationID, applicationMetric.TypeID, applicationMetric.Configuration,
-	).Scan(&applicationMetric.ID, &applicationMetric.CreatedAt, &applicationMetric.UpdatedAt)
+	sqlString := `INSERT INTO application_metrics(
+		id, application_id, type_id, configuration, created_at, updated_at
+		) VALUES (?, ?, ?, ?, ?, ?)`
+
+	_, err := repo.db.ExecContext(ctx, sqlString,
+		applicationMetric.ID, applicationMetric.ApplicationID, applicationMetric.TypeID,
+		applicationMetric.Configuration, applicationMetric.CreatedAt, applicationMetric.UpdatedAt,
+	)
 	if err != nil {
 		return err
 	}
@@ -142,16 +156,19 @@ func (repo *repository) Add(ctx context.Context, applicationMetric *applicationM
 
 func (repo *repository) Update(ctx context.Context, applicationMetric *applicationMetricModel.ApplicationMetric) error {
 	var params []interface{}
+	paramIndex := 1
 
 	sqlString := `UPDATE application_metrics SET `
 
 	if applicationMetric.TypeID != "" {
-		sqlString = fmt.Sprintf("%s type_id = $%d, ", sqlString, len(params)+1)
+		sqlString = fmt.Sprintf("%s type_id = ?, ", sqlString)
 		params = append(params, applicationMetric.TypeID)
+		paramIndex++
 	}
 	if len(applicationMetric.Configuration) > 0 {
-		sqlString = fmt.Sprintf("%s configuration = $%d, ", sqlString, len(params)+1)
+		sqlString = fmt.Sprintf("%s configuration = ?, ", sqlString)
 		params = append(params, applicationMetric.Configuration)
+		paramIndex++
 	}
 	if len(params) == 0 {
 		log.Warn().Msg("no fields to update")
@@ -159,9 +176,9 @@ func (repo *repository) Update(ctx context.Context, applicationMetric *applicati
 	}
 
 	// Always update the updated_at field
-	sqlString = fmt.Sprintf("%s updated_at = now(), ", sqlString)
+	sqlString = fmt.Sprintf("%s updated_at = DATETIME('now'), ", sqlString)
 
-	sqlString = fmt.Sprintf("%s WHERE id = $%d", sqlString[:len(sqlString)-2], len(params)+1)
+	sqlString = fmt.Sprintf("%s WHERE id = ?", sqlString[:len(sqlString)-2])
 	params = append(params, applicationMetric.ID)
 
 	result, err := repo.db.ExecContext(ctx, sqlString, params...)
@@ -190,7 +207,7 @@ func (repo *repository) Delete(ctx context.Context, id string) error {
 	defer tx.Rollback() // Will be no-op if tx.Commit() is called
 
 	// First, delete all metric values associated with this metric
-	deleteValuesSQL := `DELETE FROM application_metric_values WHERE application_metric_id = $1`
+	deleteValuesSQL := `DELETE FROM application_metric_values WHERE application_metric_id = ?`
 	valuesResult, err := tx.ExecContext(ctx, deleteValuesSQL, id)
 	if err != nil {
 		return fmt.Errorf("failed to delete metric values: %w", err)
@@ -206,7 +223,7 @@ func (repo *repository) Delete(ctx context.Context, id string) error {
 	}
 
 	// Then, delete the metric itself
-	deleteMetricSQL := `DELETE FROM application_metrics WHERE id = $1`
+	deleteMetricSQL := `DELETE FROM application_metrics WHERE id = ?`
 	result, err := tx.ExecContext(ctx, deleteMetricSQL, id)
 	if err != nil {
 		return fmt.Errorf("failed to delete metric: %w", err)

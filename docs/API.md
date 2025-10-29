@@ -10,7 +10,7 @@ This application provides a Kubernetes monitoring solution that runs inside a Ku
 - **Application Management**: Register applications to be monitored
 - **Metric Configuration**: Configure various metric types for each application
 - **Automated Monitoring**: Asynchronous collection of metrics using cron jobs
-- **Metric Storage**: Historical metric data storage for analysis
+- **Metric Storage**: Historical metric data stored in SQLite for analysis
 
 ## Metric Types
 
@@ -22,6 +22,12 @@ The following metric types are available:
 4. **PodCpuUsage** - CPU usage and limits
 5. **PvcUsage** - Persistent Volume Claim usage
 6. **PodActiveNodes** - Active nodes where pods are running
+
+## Deployment Prerequisites
+
+- Kubernetes cluster (v1.20+)
+- Metrics Server installed
+- SQLite storage configured via `DB_PATH` (use a PVC to persist the DB file when running in Kubernetes)
 
 ## API Endpoints
 
@@ -596,4 +602,3 @@ See the main README for required environment variables.
 - Support for custom metric collectors
 - Webhooks for metric events
 - Metric aggregation and statistics
-

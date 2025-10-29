@@ -59,8 +59,8 @@ GOOGLE_CLIENT_SECRET=seu-client-secret
 GOOGLE_REDIRECT_URL=http://localhost:8080/auth/callback
 ALLOWED_GOOGLE_DOMAINS=suaempresa.com
 
-# Banco de Dados
-DB_CONNECTION_STRING=postgres://user:senha@localhost:5432/k8s_monitoring?sslmode=disable
+# Banco de Dados (SQLite)
+DB_PATH=./data/k8s_monitoring.db
 
 # Outros
 ENV=development
@@ -108,7 +108,7 @@ GOOGLE_REDIRECT_URL=https://monitoring.suaempresa.com/auth/callback
 ALLOWED_GOOGLE_DOMAINS=suaempresa.com
 
 # Banco de Dados
-DB_CONNECTION_STRING=postgres://user:senha@db.suaempresa.com:5432/k8s_monitoring?sslmode=require
+DB_PATH=/data/k8s_monitoring.db
 ```
 
 ## 🔄 Fluxo de Autenticação
@@ -168,9 +168,9 @@ CREATE TABLE sessions (
     user_name VARCHAR(255) NOT NULL,
     access_token TEXT NOT NULL,
     refresh_token TEXT,
-    token_expiry TIMESTAMP,
-    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
-    expires_at TIMESTAMP NOT NULL
+    token_expiry DATETIME,
+    created_at DATETIME NOT NULL DEFAULT (DATETIME('now')),
+    expires_at DATETIME NOT NULL
 );
 ```
 
@@ -346,4 +346,3 @@ go run cmd/main.go
 ## 🎉 Pronto!
 
 Agora sua aplicação está protegida com autenticação OAuth 2.0 do Google. Apenas usuários dos domínios autorizados poderão acessar as métricas.
-

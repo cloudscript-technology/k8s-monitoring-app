@@ -21,21 +21,23 @@ import (
 	projectRepositories "k8s-monitoring-app/internal/project/repository"
 
 	"github.com/golang-migrate/migrate/v4"
-	"github.com/golang-migrate/migrate/v4/database/postgres"
+	"github.com/golang-migrate/migrate/v4/database/sqlite"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 	_ "github.com/golang-migrate/migrate/v4/source/github"
 	"github.com/labstack/echo/v4"
-	_ "github.com/lib/pq"
 	"github.com/rs/zerolog/log"
-	_ "go.elastic.co/apm/module/apmsql/pq"
+	_ "go.elastic.co/apm/module/apmsql/sqlite3"
 )
 
 // findMigrationsPath tries to find the migrations directory from different working directories
 func findMigrationsPath() string {
 	possiblePaths := []string{
-		"database/migrations",       // Running from project root
-		"../database/migrations",    // Running from cmd directory
-		"../../database/migrations", // Running from deeper directory
+		"database/migrations/sqlite",       // Prefer SQLite migrations when present
+		"../database/migrations/sqlite",    // Running from cmd directory
+		"../../database/migrations/sqlite", // Running from deeper directory
+		"database/migrations",              // Fallback to root migrations
+		"../database/migrations",           // Fallback from cmd
+		"../../database/migrations",        // Fallback from deeper directory
 	}
 
 	for _, path := range possiblePaths {
@@ -46,7 +48,7 @@ func findMigrationsPath() string {
 	}
 
 	// Default fallback (running from cmd)
-	return "file://../database/migrations"
+	return "file://../database/migrations/sqlite"
 }
 
 func NewHTTPServer(config *core.ApiServiceConfiguration) (*core.HTTPServer, error) {
@@ -60,13 +62,13 @@ func NewHTTPServer(config *core.ApiServiceConfiguration) (*core.HTTPServer, erro
 		return nil, err
 	}
 
-	driver, err := postgres.WithInstance(d, &postgres.Config{})
+	driver, err := sqlite.WithInstance(d, &sqlite.Config{})
 	if err != nil {
 		return nil, err
 	}
 
 	migrationsPath := findMigrationsPath()
-	m, err := migrate.NewWithDatabaseInstance(migrationsPath, "postgres", driver)
+	m, err := migrate.NewWithDatabaseInstance(migrationsPath, "sqlite3", driver)
 	if err != nil {
 		return nil, err
 	}
@@ -78,9 +80,9 @@ func NewHTTPServer(config *core.ApiServiceConfiguration) (*core.HTTPServer, erro
 
 	e := echo.New()
 	s := &core.HTTPServer{
-		Config:   config,
-		Api:      e,
-		Postgres: d,
+		Config: config,
+		Api:    e,
+		SQLite: d,
 	}
 
 	model.ServerSvc = &model.ServerServices{

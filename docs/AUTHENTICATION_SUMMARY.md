@@ -240,7 +240,7 @@ GOOGLE_REDIRECT_URL=http://localhost:8080/auth/callback
 ALLOWED_GOOGLE_DOMAINS=yourcompany.com
 
 # Database (required)
-DB_CONNECTION_STRING=postgres://user:pass@localhost:5432/k8s_monitoring?sslmode=disable
+DB_PATH=./data/k8s_monitoring.db
 ```
 
 ## Testing Checklist
@@ -345,4 +345,3 @@ For issues:
 - Check application logs for detailed error messages
 - Verify Google Cloud Console configuration
 - Ensure all environment variables are set correctly
-

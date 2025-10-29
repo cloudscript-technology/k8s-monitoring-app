@@ -4,22 +4,44 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"os"
+	"path/filepath"
 
 	"k8s-monitoring-app/internal/env"
 
+	_ "github.com/mattn/go-sqlite3"
 	"go.elastic.co/apm/module/apmsql"
 )
 
 func ConnectDatabase() (*sql.DB, error) {
-	db, err := apmsql.Open("postgres", env.DB_CONNECTION_STRING)
+	// Use SQLite database
+	dbPath := env.DB_PATH
+	if dbPath == "" {
+		// Default SQLite database path
+		dbPath = "./data/k8s_monitoring.db"
+	}
+
+	// Create directory if it doesn't exist
+	dir := filepath.Dir(dbPath)
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		return nil, fmt.Errorf("failed to create database directory: %s", err.Error())
+	}
+
+	db, err := apmsql.Open("sqlite3", dbPath)
 	if err != nil {
-		return db, fmt.Errorf("failed to connect to database: %s | %s", err.Error(), env.DB_CONNECTION_STRING)
+		return db, fmt.Errorf("failed to connect to database: %s | %s", err.Error(), dbPath)
+	}
+
+	// Enable foreign keys for SQLite
+	_, err = db.Exec("PRAGMA foreign_keys = ON")
+	if err != nil {
+		return db, fmt.Errorf("failed to enable foreign keys: %s", err.Error())
 	}
 
 	var count int
 	err = db.QueryRow("SELECT 1 AS count;").Scan(&count)
 	if err != nil {
-		return db, fmt.Errorf("failed to test database: %s | %s", err.Error(), env.DB_CONNECTION_STRING)
+		return db, fmt.Errorf("failed to test database: %s | %s", err.Error(), dbPath)
 	}
 	if count != 1 {
 		return nil, errors.New("failed to return test database")

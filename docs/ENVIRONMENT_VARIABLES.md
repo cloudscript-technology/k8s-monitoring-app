@@ -4,12 +4,7 @@
 
 | Variable | Description | Default | Required |
 |----------|-------------|---------|----------|
-| `DB_HOST` | Database hostname | `localhost` | No |
-| `DB_PORT` | Database port | `5432` | No |
-| `DB_USER` | Database username | `monitoring` | No |
-| `DB_PASSWORD` | Database password | `monitoring` | No |
-| `DB_NAME` | Database name | `k8s_monitoring` | No |
-| `DB_CONNECTION_STRING` | Full connection string (overrides individual settings) | - | No |
+| `DB_PATH` | SQLite database file path | `./data/k8s_monitoring.db` | No |
 
 ## Application Configuration
 
@@ -17,6 +12,23 @@
 |----------|-------------|---------|----------|
 | `ENV` | Environment name (development, staging, production) | `development` | No |
 | `ADMIN_TOKEN` | Admin authentication token | - | No |
+
+## Slack Alerts
+
+| Variable | Description | Default | Required |
+|----------|-------------|---------|----------|
+| `SLACK_ALERTS_ENABLED` | Enable Slack notifications for metric failures | `false` | No |
+| `SLACK_WEBHOOK_URL` | Slack Incoming Webhook URL | - | No |
+| `SLACK_ALERTS_DEDUP_MINUTES` | Suppress repeated alerts within this window (minutes) | `10` | No |
+
+When `SLACK_ALERTS_ENABLED` is `true` and `SLACK_WEBHOOK_URL` is set, the monitoring service will send a Slack message when it detects failures in metrics like `HealthCheck` (status down), `PodStatus` (not ready/degraded/pending/not found), `IngressCertificate` (expired/error/expiring soon), `KafkaConsumerLag` (critical/error), and connection metrics (status failed/timeout).
+
+Example:
+```bash
+export SLACK_ALERTS_ENABLED=true
+export SLACK_WEBHOOK_URL=https://hooks.slack.com/services/XXX/YYY/ZZZ
+export SLACK_ALERTS_DEDUP_MINUTES=10  # Avoid repeats within 10 minutes
+```
 
 ## Metrics Retention Configuration
 
@@ -91,11 +103,7 @@ export METRICS_CLEANUP_INTERVAL="0 */6 * * *"  # Run every 6 hours
 
 ```bash
 export ENV=development
-export DB_HOST=localhost
-export DB_PORT=5432
-export DB_USER=monitoring
-export DB_PASSWORD=monitoring
-export DB_NAME=k8s_monitoring
+export DB_PATH=./data/k8s_monitoring.db
 export METRICS_RETENTION_DAYS=1
 export METRICS_CLEANUP_INTERVAL="0 */6 * * *"
 export KUBECONFIG=~/.kube/config
@@ -105,7 +113,7 @@ export KUBECONFIG=~/.kube/config
 
 ```bash
 export ENV=production
-export DB_CONNECTION_STRING=postgres://user:pass@prod-db:5432/monitoring?sslmode=require
+export DB_PATH=/var/lib/k8s-monitoring-app/k8s_monitoring.db
 export METRICS_RETENTION_DAYS=90
 export METRICS_CLEANUP_INTERVAL="0 2 * * *"
 ```
@@ -114,7 +122,7 @@ export METRICS_CLEANUP_INTERVAL="0 2 * * *"
 
 ```bash
 export ENV=staging
-export DB_HOST=staging-db
+export DB_PATH=./data/k8s_monitoring_staging.db
 export METRICS_RETENTION_DAYS=7
 export METRICS_CLEANUP_INTERVAL="0 0 * * 0"  # Weekly on Sunday
 ```
@@ -229,4 +237,3 @@ export METRICS_CLEANUP_INTERVAL="0 */12 * * *"  # Twice daily
 - [Local Development Guide](LOCAL_DEVELOPMENT.md)
 - [Deployment Guide](DEPLOYMENT.md)
 - [API Documentation](API.md)
-

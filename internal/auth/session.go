@@ -61,10 +61,10 @@ func CreateSession(ctx context.Context, email, name, picture string, token *oaut
 		ExpiresAt:    expiresAt,
 	}
 
-	query := `
-		INSERT INTO sessions (id, user_email, user_name, user_picture, access_token, refresh_token, token_expiry, created_at, expires_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-	`
+    query := `
+        INSERT INTO sessions (id, user_email, user_name, user_picture, access_token, refresh_token, token_expiry, created_at, expires_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `
 
 	_, err = db.ExecContext(ctx, query,
 		session.ID,
@@ -91,11 +91,11 @@ func GetSession(ctx context.Context, sessionID string) (*Session, error) {
 		return nil, fmt.Errorf("failed to connect to database: %w", err)
 	}
 
-	query := `
-		SELECT id, user_email, user_name, user_picture, access_token, refresh_token, token_expiry, created_at, expires_at
-		FROM sessions
-		WHERE id = $1 AND expires_at > NOW()
-	`
+    query := `
+        SELECT id, user_email, user_name, user_picture, access_token, refresh_token, token_expiry, created_at, expires_at
+        FROM sessions
+        WHERE id = ? AND expires_at > DATETIME('now')
+    `
 
 	var session Session
 	var userPicture sql.NullString
@@ -130,7 +130,7 @@ func DeleteSession(ctx context.Context, sessionID string) error {
 		return fmt.Errorf("failed to connect to database: %w", err)
 	}
 
-	query := `DELETE FROM sessions WHERE id = $1`
+    query := `DELETE FROM sessions WHERE id = ?`
 	_, err = db.ExecContext(ctx, query, sessionID)
 	if err != nil {
 		return fmt.Errorf("failed to delete session: %w", err)
@@ -146,7 +146,7 @@ func CleanupExpiredSessions(ctx context.Context) error {
 		return fmt.Errorf("failed to connect to database: %w", err)
 	}
 
-	query := `DELETE FROM sessions WHERE expires_at <= NOW()`
+    query := `DELETE FROM sessions WHERE expires_at <= DATETIME('now')`
 	result, err := db.ExecContext(ctx, query)
 	if err != nil {
 		return fmt.Errorf("failed to cleanup expired sessions: %w", err)
@@ -168,7 +168,7 @@ func UpdateSessionExpiry(ctx context.Context, sessionID string) error {
 	}
 
 	expiresAt := time.Now().Add(24 * time.Hour)
-	query := `UPDATE sessions SET expires_at = $1 WHERE id = $2`
+    query := `UPDATE sessions SET expires_at = ? WHERE id = ?`
 
 	_, err = db.ExecContext(ctx, query, expiresAt, sessionID)
 	if err != nil {

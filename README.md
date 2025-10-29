@@ -8,7 +8,7 @@ A Kubernetes-native monitoring application that runs inside your cluster and col
 - 🔄 **Automatic Collection**: Metrics collected every minute via cron jobs
 - 📊 **Multiple Metric Types**: Health checks, pod status, CPU, memory, PVC usage, and node tracking
 - 🔌 **Database Connection Monitoring**: Test and monitor Redis, PostgreSQL, MongoDB, MySQL, and Kong connections with authentication
-- 🗄️ **Historical Data**: All metrics stored in PostgreSQL for analysis
+ - 🗄️ **Historical Data**: All metrics stored in SQLite for analysis
 - 🔐 **OAuth 2.0 Authentication**: Secure Google OAuth authentication with domain restriction
 - 🔒 **RBAC Ready**: Designed to work with Kubernetes security best practices
 - 📈 **Scalable**: Built to monitor multiple applications and namespaces
@@ -33,7 +33,7 @@ A Kubernetes-native monitoring application that runs inside your cluster and col
 │  │        │                            │                │  │
 │  │        ▼                            ▼                │  │
 │  │  ┌──────────────────────────────────────────────┐   │  │
-│  │  │          PostgreSQL Database                 │   │  │
+│  │  │          SQLite Database (file)              │   │  │
 │  │  │  - Projects                                  │   │  │
 │  │  │  - Applications                              │   │  │
 │  │  │  - Metric Types                              │   │  │
@@ -55,7 +55,7 @@ A Kubernetes-native monitoring application that runs inside your cluster and col
 ### Prerequisites
 
 - Kubernetes cluster (v1.20+)
-- PostgreSQL database
+- SQLite (bundled, no external database required)
 - metrics-server installed in your cluster
 - Google OAuth 2.0 credentials (for authentication)
 
@@ -152,15 +152,10 @@ Using the provided Helm chart:
 
 ```bash
 helm install k8s-monitoring-app ./chart \
-  --set env[0].name=DB_HOST \
-  --set env[0].value=postgres.default.svc.cluster.local \
-  --set env[1].name=DB_USER \
-  --set env[1].value=monitoring \
-  --set env[2].name=DB_PASSWORD \
-  --set env[2].value=your_password \
-  --set env[3].name=DB_NAME \
-  --set env[3].value=k8s_monitoring
+  --set env[0].name=DB_PATH \
+  --set env[0].value=/data/k8s_monitoring.db
 ```
+Note: For persistence in Kubernetes, mount a PVC at `/data`.
 
 ### 3. Configure Your First Application
 
@@ -401,7 +396,6 @@ k8s-monitoring-app/
 
 ### Prerequisites
 - Go 1.24+
-- PostgreSQL 12+
 - Docker (optional)
 - Access to a Kubernetes cluster (can be local: Minikube, Kind, Docker Desktop)
 
@@ -427,22 +421,9 @@ cd k8s-monitoring-app
 go mod download
 ```
 
-3. Start PostgreSQL (using Docker):
+3. Set up environment variables:
 ```bash
-docker run --name postgres-monitoring \
-  -e POSTGRES_USER=monitoring \
-  -e POSTGRES_PASSWORD=monitoring123 \
-  -e POSTGRES_DB=k8s_monitoring \
-  -p 5432:5432 -d postgres:15
-```
-
-4. Set up environment variables:
-```bash
-export DB_HOST=localhost
-export DB_PORT=5432
-export DB_USER=monitoring
-export DB_PASSWORD=monitoring123
-export DB_NAME=k8s_monitoring
+export DB_PATH=./data/k8s_monitoring.db
 export LOG_LEVEL=debug
 
 # Optional: specify kubeconfig explicitly
@@ -479,9 +460,7 @@ See [docs/LOCAL_DEVELOPMENT.md](docs/LOCAL_DEVELOPMENT.md)
 docker-compose up -d
 ```
 
-This will start:
-- PostgreSQL database
-- The monitoring application
+This will start the monitoring application.
 
 ### Build the Application
 
@@ -549,7 +528,7 @@ helm install k8s-monitoring-app ./chart \
 | Variable | Description | Required | Default |
 |----------|-------------|----------|---------|
 | **Database** |
-| DB_CONNECTION_STRING | PostgreSQL connection string | Yes | - |
+| DB_PATH | SQLite database file path | No | `./data/k8s_monitoring.db` |
 | **Authentication** |
 | GOOGLE_CLIENT_ID | Google OAuth Client ID | Yes* | - |
 | GOOGLE_CLIENT_SECRET | Google OAuth Client Secret | Yes* | - |
@@ -560,6 +539,10 @@ helm install k8s-monitoring-app ./chart \
 | METRICS_RETENTION_DAYS | Days to keep metric history | No | 30 |
 | METRICS_CLEANUP_INTERVAL | Cron expression for cleanup | No | 0 2 * * * |
 | METRICS_COLLECTION_INTERVAL | Collection interval in seconds | No | 60 |
+| **Alerts** |
+| SLACK_ALERTS_ENABLED | Enable Slack notifications on metric failures | No | false |
+| SLACK_WEBHOOK_URL | Slack Incoming Webhook URL | No | - |
+| SLACK_ALERTS_DEDUP_MINUTES | Suppress repeated alerts within N minutes | No | 10 |
 | **Other** |
 | ENV | Environment (development/staging/production) | No | development |
 | LOG_LEVEL | Logging level | No | info |

@@ -16,3 +16,5 @@ tag.txt
 /cmd/.env
 .kafka
 /test/.env_test
+data
+bin

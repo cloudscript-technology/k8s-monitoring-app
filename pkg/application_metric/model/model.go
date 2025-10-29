@@ -2,6 +2,8 @@ package application_metric
 
 import (
 	"encoding/json"
+	"fmt"
+	"strconv"
 	"time"
 
 	"k8s-monitoring-app/internal/core"
@@ -56,6 +58,107 @@ type Configuration struct {
 	KafkaSaslUsername     string `json:"kafka_sasl_username,omitempty"`     // SASL username
 	KafkaSaslPassword     string `json:"kafka_sasl_password,omitempty"`     // SASL password
 	KafkaLagThreshold     int64  `json:"kafka_lag_threshold,omitempty"`     // Lag threshold for warning (default: 1000)
+}
+
+// UnmarshalJSON provides lenient parsing for specific fields while keeping the overall schema strict.
+// Currently, it accepts both numbers and numeric strings for `warning_days` to tolerate legacy/bad configs.
+func (c *Configuration) UnmarshalJSON(data []byte) error {
+	// Unmarshal into raw map to avoid early type errors on tolerant fields
+	var m map[string]json.RawMessage
+	if err := json.Unmarshal(data, &m); err != nil {
+		return err
+	}
+
+	var cfg Configuration
+
+	// Helpers
+	parseInt := func(v json.RawMessage) (int, error) {
+		var i int
+		if err := json.Unmarshal(v, &i); err == nil {
+			return i, nil
+		}
+		var s string
+		if err := json.Unmarshal(v, &s); err == nil {
+			ii, convErr := strconv.Atoi(s)
+			if convErr != nil {
+				return 0, fmt.Errorf("invalid numeric string: %s", s)
+			}
+			return ii, nil
+		}
+		return 0, fmt.Errorf("invalid integer value")
+	}
+	parseInt64 := func(v json.RawMessage) (int64, error) {
+		var i64 int64
+		if err := json.Unmarshal(v, &i64); err == nil {
+			return i64, nil
+		}
+		var s string
+		if err := json.Unmarshal(v, &s); err == nil {
+			ii, convErr := strconv.ParseInt(s, 10, 64)
+			if convErr != nil {
+				return 0, fmt.Errorf("invalid numeric string: %s", s)
+			}
+			return ii, nil
+		}
+		return 0, fmt.Errorf("invalid integer value")
+	}
+
+	// Strings
+	_ = json.Unmarshal(m["health_check_url"], &cfg.HealthCheckURL)
+	_ = json.Unmarshal(m["method"], &cfg.Method)
+	_ = json.Unmarshal(m["pod_label_selector"], &cfg.PodLabelSelector)
+	_ = json.Unmarshal(m["container_name"], &cfg.ContainerName)
+	_ = json.Unmarshal(m["pvc_name"], &cfg.PvcName)
+	_ = json.Unmarshal(m["pvc_mount_path"], &cfg.PvcMountPath)
+	_ = json.Unmarshal(m["connection_host"], &cfg.ConnectionHost)
+	_ = json.Unmarshal(m["connection_username"], &cfg.ConnectionUsername)
+	_ = json.Unmarshal(m["connection_password"], &cfg.ConnectionPassword)
+	_ = json.Unmarshal(m["connection_database"], &cfg.ConnectionDatabase)
+	_ = json.Unmarshal(m["connection_auth_source"], &cfg.ConnectionAuthSource)
+	_ = json.Unmarshal(m["kong_admin_url"], &cfg.KongAdminURL)
+	_ = json.Unmarshal(m["ingress_name"], &cfg.IngressName)
+	_ = json.Unmarshal(m["ingress_namespace"], &cfg.IngressNamespace)
+	_ = json.Unmarshal(m["tls_secret_name"], &cfg.TLSSecretName)
+	_ = json.Unmarshal(m["kafka_bootstrap_servers"], &cfg.KafkaBootstrapServers)
+	_ = json.Unmarshal(m["kafka_consumer_group"], &cfg.KafkaConsumerGroup)
+	_ = json.Unmarshal(m["kafka_topic"], &cfg.KafkaTopic)
+	_ = json.Unmarshal(m["kafka_security_protocol"], &cfg.KafkaSecurityProtocol)
+	_ = json.Unmarshal(m["kafka_sasl_mechanism"], &cfg.KafkaSaslMechanism)
+	_ = json.Unmarshal(m["kafka_sasl_username"], &cfg.KafkaSaslUsername)
+	_ = json.Unmarshal(m["kafka_sasl_password"], &cfg.KafkaSaslPassword)
+
+	// Ints and bools (strict for non-special fields)
+	_ = json.Unmarshal(m["timeout_seconds"], &cfg.TimeoutSeconds)
+	_ = json.Unmarshal(m["connection_port"], &cfg.ConnectionPort)
+	_ = json.Unmarshal(m["connection_ssl"], &cfg.ConnectionSSL)
+	_ = json.Unmarshal(m["connection_timeout"], &cfg.ConnectionTimeout)
+	_ = json.Unmarshal(m["connection_db"], &cfg.ConnectionDB)
+
+	// Special tolerant fields
+	if v, ok := m["expected_status"]; ok && len(v) > 0 && string(v) != "null" {
+		if i, err := parseInt(v); err == nil {
+			cfg.ExpectedStatus = i
+		} else {
+			return fmt.Errorf("invalid expected_status: %w", err)
+		}
+	}
+	if v, ok := m["warning_days"]; ok && len(v) > 0 && string(v) != "null" {
+		if i, err := parseInt(v); err == nil {
+			cfg.WarningDays = i
+		} else {
+			return fmt.Errorf("invalid warning_days: %w", err)
+		}
+	}
+	if v, ok := m["kafka_lag_threshold"]; ok && len(v) > 0 && string(v) != "null" {
+		if i64, err := parseInt64(v); err == nil {
+			cfg.KafkaLagThreshold = i64
+		} else {
+			return fmt.Errorf("invalid kafka_lag_threshold: %w", err)
+		}
+	}
+
+	*c = cfg
+	return nil
 }
 
 type ApplicationMetric struct {

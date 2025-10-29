@@ -199,19 +199,33 @@ func (repo *repository) Update(ctx context.Context, applicationMetric *applicati
 }
 
 func (repo *repository) Delete(ctx context.Context, id string) error {
-	// Start a transaction to ensure both deletes happen atomically
-	tx, err := repo.db.BeginTx(ctx, nil)
-	if err != nil {
-		return fmt.Errorf("failed to begin transaction: %w", err)
-	}
-	defer tx.Rollback() // Will be no-op if tx.Commit() is called
+    // Start a transaction to ensure both deletes happen atomically
+    tx, err := repo.db.BeginTx(ctx, nil)
+    if err != nil {
+        return fmt.Errorf("failed to begin transaction: %w", err)
+    }
+    defer tx.Rollback() // Will be no-op if tx.Commit() is called
 
-	// First, delete all metric values associated with this metric
-	deleteValuesSQL := `DELETE FROM application_metric_values WHERE application_metric_id = ?`
-	valuesResult, err := tx.ExecContext(ctx, deleteValuesSQL, id)
-	if err != nil {
-		return fmt.Errorf("failed to delete metric values: %w", err)
-	}
+    // Delete any alert deduplication rows referencing this metric to satisfy FK constraints
+    deleteAlertsSQL := `DELETE FROM alerts_sent_daily WHERE application_metric_id = ?`
+    alertsResult, err := tx.ExecContext(ctx, deleteAlertsSQL, id)
+    if err != nil {
+        return fmt.Errorf("failed to delete related alerts_sent_daily rows: %w", err)
+    }
+    alertsDeleted, _ := alertsResult.RowsAffected()
+    if alertsDeleted > 0 {
+        log.Info().
+            Str("metric_id", id).
+            Int64("alerts_deleted", alertsDeleted).
+            Msg("deleted alerts_sent_daily rows before deleting metric")
+    }
+
+    // First, delete all metric values associated with this metric
+    deleteValuesSQL := `DELETE FROM application_metric_values WHERE application_metric_id = ?`
+    valuesResult, err := tx.ExecContext(ctx, deleteValuesSQL, id)
+    if err != nil {
+        return fmt.Errorf("failed to delete metric values: %w", err)
+    }
 
 	// Log how many values were deleted
 	valuesDeleted, _ := valuesResult.RowsAffected()

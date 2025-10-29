@@ -2,6 +2,7 @@ package web
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"html/template"
@@ -115,7 +116,10 @@ func (h *Handler) DeleteMetric(sc *core.HTTPServerContext) error {
 
 	err := serverModel.ServerRepos.ApplicationMetric.Delete(ctx, id)
 	if err != nil {
-		log.Error().Str("id", id).Msg("error deleting metric")
+		if err == sql.ErrNoRows {
+			return sc.String(http.StatusNotFound, "Metric not found")
+		}
+		log.Error().Err(err).Str("id", id).Msg("error deleting metric")
 		return sc.String(http.StatusInternalServerError, "Error deleting metric")
 	}
 

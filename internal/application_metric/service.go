@@ -1,6 +1,8 @@
 package application_metric
 
 import (
+	"database/sql"
+	"encoding/json"
 	"net/http"
 
 	"k8s-monitoring-app/internal/core"
@@ -112,6 +114,20 @@ func (s *service) Add(sc *core.HTTPServerContext) error {
 		}
 	}
 
+	// Validate configuration schema early to avoid runtime collector failures
+	var cfg model.Configuration
+	if err := json.Unmarshal(applicationMetric.Configuration, &cfg); err != nil {
+		log.Warn().Err(err).
+			Str("application_id", applicationMetric.ApplicationID).
+			Str("metric_type", metricType.Name).
+			Msg("invalid metric configuration payload")
+		return sc.JSON(http.StatusBadRequest, map[string]interface{}{
+			"error":   "invalid configuration",
+			"message": "Configuration JSON does not match expected schema for '" + metricType.Name + "'",
+			"details": err.Error(),
+		})
+	}
+
 	if err := serverModel.ServerRepos.ApplicationMetric.Add(ctx, &applicationMetric); err != nil {
 		log.Error().Msg("error add application metric")
 		return sc.String(http.StatusInternalServerError, "internal server error")
@@ -132,7 +148,7 @@ func (s *service) Update(sc *core.HTTPServerContext) error {
 	}
 
 	applicationMetric := model.ApplicationMetric{}
-	if err := sc.Bind(&applicationMetric); err != nil {
+	if err = sc.Bind(&applicationMetric); err != nil {
 		log.Error().Msg("error binding application metric")
 		return sc.String(http.StatusBadRequest, "Invalid Request")
 	}
@@ -140,17 +156,17 @@ func (s *service) Update(sc *core.HTTPServerContext) error {
 
 	// Validate that the metric type exists if it's being changed
 	if applicationMetric.TypeID != "" {
-		metricType, err := serverModel.ServerRepos.MetricType.Get(ctx, applicationMetric.TypeID)
-		if err != nil {
-			log.Error().Msg("error getting metric type")
+		metricType, err2 := serverModel.ServerRepos.MetricType.Get(ctx, applicationMetric.TypeID)
+		if err2 != nil {
+			log.Error().Msgf("error getting metric type: %s", err2.Error())
 			return sc.String(http.StatusBadRequest, "metric type not found")
 		}
 
 		// If the type is being changed, check if another metric of the new type already exists
 		if applicationMetric.TypeID != existingMetric.TypeID {
-			existingMetrics, err := serverModel.ServerRepos.ApplicationMetric.ListByApplication(ctx, existingMetric.ApplicationID)
-			if err != nil {
-				log.Error().Msg("error listing application metrics")
+			existingMetrics, err3 := serverModel.ServerRepos.ApplicationMetric.ListByApplication(ctx, existingMetric.ApplicationID)
+			if err3 != nil {
+				log.Error().Msgf("error listing application metrics: %s", err3.Error())
 				return sc.String(http.StatusInternalServerError, "internal server error")
 			}
 
@@ -177,6 +193,34 @@ func (s *service) Update(sc *core.HTTPServerContext) error {
 		}
 	}
 
+	// Determine metric type for configuration validation
+	metricTypeForValidationID := existingMetric.TypeID
+	if applicationMetric.TypeID != "" {
+		metricTypeForValidationID = applicationMetric.TypeID
+	}
+	metricTypeForValidation, err := serverModel.ServerRepos.MetricType.Get(ctx, metricTypeForValidationID)
+	if err != nil {
+		log.Error().Msg("error getting metric type for validation")
+		return sc.String(http.StatusBadRequest, "metric type not found")
+	}
+
+	// If configuration is provided, validate schema early
+	if len(applicationMetric.Configuration) > 0 {
+		var cfg model.Configuration
+		if err := json.Unmarshal(applicationMetric.Configuration, &cfg); err != nil {
+			log.Warn().Err(err).
+				Str("application_id", existingMetric.ApplicationID).
+				Str("metric_type", metricTypeForValidation.Name).
+				Str("application_metric_id", id).
+				Msg("invalid metric configuration payload on update")
+			return sc.JSON(http.StatusBadRequest, map[string]interface{}{
+				"error":   "invalid configuration",
+				"message": "Configuration JSON does not match expected schema for '" + metricTypeForValidation.Name + "'",
+				"details": err.Error(),
+			})
+		}
+	}
+
 	if err := serverModel.ServerRepos.ApplicationMetric.Update(ctx, &applicationMetric); err != nil {
 		log.Error().Msg("error updating application metric")
 		return sc.String(http.StatusInternalServerError, "Internal Server Error")
@@ -196,7 +240,10 @@ func (s *service) Delete(sc *core.HTTPServerContext) error {
 
 	err := serverModel.ServerRepos.ApplicationMetric.Delete(ctx, id)
 	if err != nil {
-		log.Error().Msg("error deleting application metric")
+		if err == sql.ErrNoRows {
+			return sc.String(http.StatusNotFound, "application metric not found")
+		}
+		log.Error().Err(err).Str("id", id).Msg("error deleting application metric")
 		return sc.String(http.StatusInternalServerError, "Internal Server Error")
 	}
 

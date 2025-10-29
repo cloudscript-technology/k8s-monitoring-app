@@ -37,7 +37,6 @@ INSERT INTO metric_types (name, description) VALUES ('PodMemoryUsage', 'Memory u
 INSERT INTO metric_types (name, description) VALUES ('PodCpuUsage', 'CPU usage of the pod');
 INSERT INTO metric_types (name, description) VALUES ('PvcUsage', 'Usage of the PVC');
 INSERT INTO metric_types (name, description) VALUES ('HealthCheck', 'Health check of the pod');
-INSERT INTO metric_types (name, description) VALUES ('KafkaLag', 'Kafka consumer lag metrics');
 INSERT INTO metric_types (name, description) VALUES ('IngressCertificate', 'Ingress certificate expiration monitoring');
 
 -- Create application_metrics table

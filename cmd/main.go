@@ -16,12 +16,12 @@ import (
 func main() {
 	err := env.GetEnv()
 	if err != nil {
-		log.Warn().Msg("Aviso: .env não encontrado, usando variáveis de ambiente do sistema")
+		log.Warn().Msgf("Aviso: .env não encontrado, usando variáveis de ambiente do sistema: %s", err.Error())
 	}
 
 	httpServer, err := server.NewHTTPServer(&core.ApiServiceConfiguration{})
 	if err != nil {
-		log.Error().Msg("Erro ao criar servidor")
+		log.Error().Msgf("Erro ao criar servidor: %s", err.Error())
 		os.Exit(1)
 	}
 	defer httpServer.SQLite.Close()
@@ -29,12 +29,12 @@ func main() {
 	// Initialize and start monitoring service
 	monitoringSvc, err := monitoring.NewMonitoringService(httpServer.SQLite)
 	if err != nil {
-		log.Error().Msg("Erro ao criar serviço de monitoramento")
+		log.Error().Msgf("Erro ao criar serviço de monitoramento: %s", err.Error())
 		os.Exit(1)
 	}
 
 	if err := monitoringSvc.Start(); err != nil {
-		log.Error().Msg("Erro ao iniciar serviço de monitoramento")
+		log.Error().Msgf("Erro ao iniciar serviço de monitoramento: %s", err.Error())
 		os.Exit(1)
 	}
 	defer monitoringSvc.Stop()
@@ -46,7 +46,7 @@ func main() {
 	// Start HTTP server in a goroutine
 	go func() {
 		if err := httpServer.Start(); err != nil {
-			log.Error().Msg("Erro ao iniciar servidor HTTP")
+			log.Error().Msgf("Erro ao iniciar servidor HTTP: %s", err.Error())
 			os.Exit(1)
 		}
 	}()

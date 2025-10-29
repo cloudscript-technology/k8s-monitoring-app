@@ -285,7 +285,7 @@ func (c *Client) GetPVCUsageWithDiskInfo(ctx context.Context, namespace, pvcName
 	// Get the PVC to retrieve capacity
 	pvc, err := c.GetPVCUsage(ctx, namespace, pvcName)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get PVC: %w", err)
 	}
 
 	capacity := pvc.Status.Capacity[corev1.ResourceStorage]
@@ -293,9 +293,9 @@ func (c *Client) GetPVCUsageWithDiskInfo(ctx context.Context, namespace, pvcName
 
 	// If no mount path provided, try to discover it
 	if mountPath == "" {
-		discoveredPath, err := c.DiscoverPVCMountPath(ctx, namespace, pvcName, podLabelSelector)
-		if err != nil {
-			return nil, fmt.Errorf("failed to discover mount path: %w", err)
+		discoveredPath, err2 := c.DiscoverPVCMountPath(ctx, namespace, pvcName, podLabelSelector)
+		if err2 != nil {
+			return nil, fmt.Errorf("failed to discover mount path: %w", err2)
 		}
 		mountPath = discoveredPath
 	}
@@ -303,7 +303,7 @@ func (c *Client) GetPVCUsageWithDiskInfo(ctx context.Context, namespace, pvcName
 	// Get a pod that uses this PVC
 	pods, err := c.GetPodsByLabelSelector(ctx, namespace, podLabelSelector)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get pods: %w", err)
 	}
 
 	if len(pods.Items) == 0 {

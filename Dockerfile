@@ -18,6 +18,7 @@ COPY database/migrations /app/database/migrations
 COPY web/templates /app/web/templates
 COPY web/static /app/web/static
 
+RUN mkdir -p /app/data
 RUN chmod +x ./k8s-monitoring-app
 RUN chown -R appuser:appgroup /app
 USER appuser

@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"k8s-monitoring-app/internal/core"
+	"k8s-monitoring-app/internal/security"
 	serverModel "k8s-monitoring-app/internal/server/model"
 	applicationModel "k8s-monitoring-app/pkg/application/model"
 	applicationMetricModel "k8s-monitoring-app/pkg/application_metric/model"
@@ -914,7 +915,7 @@ func (h *Handler) GetMetricsList(sc *core.HTTPServerContext) error {
 			ID:            metric.ID,
 			TypeID:        metric.TypeID,
 			ApplicationID: metric.ApplicationID,
-			Configuration: string(metric.Configuration),
+			Configuration: string(security.RedactSensitiveFieldsRaw(metric.Configuration)),
 		}
 
 		// Get metric type details
@@ -1114,9 +1115,10 @@ func (h *Handler) GetApplicationMetrics(sc *core.HTTPServerContext) error {
 			MetricTypeID: metric.TypeID,
 		}
 
-		// Parse Configuration from JSON to map
+		// Parse Configuration from JSON to map (with redaction applied first)
 		var config map[string]interface{}
-		if err = json.Unmarshal(metric.Configuration, &config); err == nil {
+		redacted := security.RedactSensitiveFieldsRaw(metric.Configuration)
+		if err = json.Unmarshal(redacted, &config); err == nil {
 			metricWithValue.Configuration = config
 		}
 

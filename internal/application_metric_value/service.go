@@ -7,6 +7,7 @@ import (
 	"strconv"
 
 	"k8s-monitoring-app/internal/core"
+    "k8s-monitoring-app/internal/security"
 	serverModel "k8s-monitoring-app/internal/server/model"
 	model "k8s-monitoring-app/pkg/application_metric_value/model"
 
@@ -153,7 +154,7 @@ func (s *service) GetLatestByApplication(sc *core.HTTPServerContext) error {
 		metricWithValue := MetricWithLatestValue{
 			MetricID:              metric.ID,
 			MetricTypeID:          metric.TypeID,
-			Configuration:         metric.Configuration,
+			Configuration:         security.RedactSensitiveFieldsRaw(metric.Configuration),
 			MetricTypeName:        metricType.Name,
 			MetricTypeDescription: metricType.Description,
 		}

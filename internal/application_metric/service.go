@@ -7,6 +7,7 @@ import (
 	"net/http"
 
 	"k8s-monitoring-app/internal/core"
+    "k8s-monitoring-app/internal/security"
 	serverModel "k8s-monitoring-app/internal/server/model"
 	model "k8s-monitoring-app/pkg/application_metric/model"
 
@@ -35,7 +36,9 @@ func (s *service) Get(sc *core.HTTPServerContext) error {
 		return sc.String(http.StatusNotFound, "application metric not found")
 	}
 
-	return sc.JSON(http.StatusOK, applicationMetric)
+    // Redact sensitive configuration fields before returning
+    applicationMetric.Configuration = security.RedactSensitiveFieldsRaw(applicationMetric.Configuration)
+    return sc.JSON(http.StatusOK, applicationMetric)
 }
 
 func (s *service) List(sc *core.HTTPServerContext) error {
@@ -47,7 +50,11 @@ func (s *service) List(sc *core.HTTPServerContext) error {
 		return sc.String(http.StatusInternalServerError, "internal server error")
 	}
 
-	return sc.JSON(http.StatusOK, applicationMetrics)
+    // Redact sensitive configuration fields in each item before returning
+    for i := range applicationMetrics {
+        applicationMetrics[i].Configuration = security.RedactSensitiveFieldsRaw(applicationMetrics[i].Configuration)
+    }
+    return sc.JSON(http.StatusOK, applicationMetrics)
 }
 
 func (s *service) ListByApplication(sc *core.HTTPServerContext) error {
@@ -66,7 +73,11 @@ func (s *service) ListByApplication(sc *core.HTTPServerContext) error {
 		return sc.String(http.StatusInternalServerError, "internal server error")
 	}
 
-	return sc.JSON(http.StatusOK, applicationMetrics)
+    // Redact sensitive configuration fields before returning
+    for i := range applicationMetrics {
+        applicationMetrics[i].Configuration = security.RedactSensitiveFieldsRaw(applicationMetrics[i].Configuration)
+    }
+    return sc.JSON(http.StatusOK, applicationMetrics)
 }
 
 func (s *service) Add(sc *core.HTTPServerContext) error {
@@ -146,7 +157,9 @@ func (s *service) Add(sc *core.HTTPServerContext) error {
 		return sc.String(http.StatusInternalServerError, "internal server error")
 	}
 
-	return sc.JSON(http.StatusCreated, applicationMetric)
+    // Redact sensitive configuration fields before returning
+    applicationMetric.Configuration = security.RedactSensitiveFieldsRaw(applicationMetric.Configuration)
+    return sc.JSON(http.StatusCreated, applicationMetric)
 }
 
 func (s *service) Update(sc *core.HTTPServerContext) error {
@@ -252,7 +265,9 @@ func (s *service) Update(sc *core.HTTPServerContext) error {
 		return sc.String(http.StatusInternalServerError, "Internal Server Error")
 	}
 
-	return sc.JSON(http.StatusOK, applicationMetric)
+    // Redact sensitive configuration fields before returning
+    applicationMetric.Configuration = security.RedactSensitiveFieldsRaw(applicationMetric.Configuration)
+    return sc.JSON(http.StatusOK, applicationMetric)
 }
 
 func (s *service) Delete(sc *core.HTTPServerContext) error {

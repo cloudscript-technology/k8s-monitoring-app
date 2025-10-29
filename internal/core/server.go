@@ -2,8 +2,10 @@ package core
 
 import (
 	"database/sql"
+	"fmt"
 	"html/template"
 	"io"
+	"k8s-monitoring-app/internal/env"
 	"net/http"
 
 	"github.com/labstack/echo/v4"
@@ -52,5 +54,5 @@ func (s *HTTPServer) WrapHandler(h func(sc *HTTPServerContext) error) echo.Handl
 }
 
 func (s *HTTPServer) Start() error {
-	return s.Api.Start(":8080")
+	return s.Api.Start(fmt.Sprintf(":%d", env.PORT))
 }

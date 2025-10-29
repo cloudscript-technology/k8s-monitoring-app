@@ -6,6 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ .Title }} - K8s Monitoring</title>
     <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+    <script src="https://unpkg.com/htmx.org/dist/ext/morphdom-swap.js"></script>
     <link rel="stylesheet" href="/static/css/style.css">
 </head>
 
@@ -71,7 +72,8 @@
                     </div>
                 </div>
 
-                <div class="projects-grid" hx-get="/api/ui/projects" hx-trigger="load, every 10s" hx-swap="innerHTML">
+                <div id="projects-grid" class="projects-grid" hx-get="/api/ui/projects"
+                    hx-trigger="load, visibility:visible" hx-swap="morphdom settle:200ms">
                     <div class="loading">Loading projects...</div>
                 </div>
             </div>
@@ -175,6 +177,41 @@
                     });
             }
         }
+
+        // Preservar posição de scroll durante atualizações HTMX periódicas (mais robusto)
+        (function () {
+            // Evita que o HTMX faça scroll em elementos focados
+            if (window.htmx && htmx.config) {
+                htmx.config.defaultFocusScroll = false;
+            }
+
+            let lastScrollY = null;
+            let pendingRestore = false;
+
+            document.addEventListener('htmx:beforeRequest', function (evt) {
+                const elt = evt.detail && evt.detail.elt;
+                if (!elt) return;
+                const trigger = (elt.getAttribute('hx-trigger') || '').toLowerCase();
+                if (trigger.includes('every')) {
+                    lastScrollY = window.scrollY;
+                    pendingRestore = true;
+                }
+            });
+
+            // Restaura após o layout assentar
+            document.addEventListener('htmx:afterSettle', function () {
+                if (pendingRestore && lastScrollY !== null) {
+                    // Duplo RAF para garantir que o layout finalizou
+                    requestAnimationFrame(function () {
+                        requestAnimationFrame(function () {
+                            window.scrollTo({ top: lastScrollY, behavior: 'auto' });
+                            lastScrollY = null;
+                            pendingRestore = false;
+                        });
+                    });
+                }
+            });
+        })();
     </script>
 </body>
 

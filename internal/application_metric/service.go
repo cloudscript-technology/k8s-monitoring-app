@@ -3,6 +3,7 @@ package application_metric
 import (
 	"database/sql"
 	"encoding/json"
+	"fmt"
 	"net/http"
 
 	"k8s-monitoring-app/internal/core"
@@ -128,6 +129,18 @@ func (s *service) Add(sc *core.HTTPServerContext) error {
 		})
 	}
 
+	// Additional validation for connection-type metrics to avoid silent misconfigurations
+	if err := validateConfigByType(metricType.Name, cfg); err != nil {
+		log.Warn().Err(err).
+			Str("application_id", applicationMetric.ApplicationID).
+			Str("metric_type", metricType.Name).
+			Msg("invalid connection configuration")
+		return sc.JSON(http.StatusBadRequest, map[string]interface{}{
+			"error":   "invalid configuration",
+			"message": err.Error(),
+		})
+	}
+
 	if err := serverModel.ServerRepos.ApplicationMetric.Add(ctx, &applicationMetric); err != nil {
 		log.Error().Msg("error add application metric")
 		return sc.String(http.StatusInternalServerError, "internal server error")
@@ -219,6 +232,19 @@ func (s *service) Update(sc *core.HTTPServerContext) error {
 				"details": err.Error(),
 			})
 		}
+
+		// Additional validation for connection-type metrics
+		if err := validateConfigByType(metricTypeForValidation.Name, cfg); err != nil {
+			log.Warn().Err(err).
+				Str("application_id", existingMetric.ApplicationID).
+				Str("metric_type", metricTypeForValidation.Name).
+				Str("application_metric_id", id).
+				Msg("invalid connection configuration on update")
+			return sc.JSON(http.StatusBadRequest, map[string]interface{}{
+				"error":   "invalid configuration",
+				"message": err.Error(),
+			})
+		}
 	}
 
 	if err := serverModel.ServerRepos.ApplicationMetric.Update(ctx, &applicationMetric); err != nil {
@@ -248,4 +274,86 @@ func (s *service) Delete(sc *core.HTTPServerContext) error {
 	}
 
 	return sc.JSON(http.StatusOK, map[string]bool{"success": true})
+}
+
+// validateConfigByType performs required-field checks for connection-type metrics.
+// It prevents silent zero-values (e.g., port=0, timeout=0) from reaching collectors.
+func validateConfigByType(metricTypeName string, cfg model.Configuration) error {
+	switch metricTypeName {
+	case "PostgreSQLConnection":
+		if cfg.ConnectionHost == "" {
+			return fmt.Errorf("connection_host is required for %s", metricTypeName)
+		}
+		if cfg.ConnectionPort <= 0 {
+			return fmt.Errorf("connection_port must be a positive integer for %s", metricTypeName)
+		}
+		if cfg.ConnectionUsername == "" {
+			return fmt.Errorf("connection_username is required for %s", metricTypeName)
+		}
+		if cfg.ConnectionDatabase == "" {
+			return fmt.Errorf("connection_database is required for %s", metricTypeName)
+		}
+		if cfg.ConnectionTimeout <= 0 {
+			return fmt.Errorf("connection_timeout must be a positive integer for %s", metricTypeName)
+		}
+	case "MySQLConnection":
+		if cfg.ConnectionHost == "" {
+			return fmt.Errorf("connection_host is required for %s", metricTypeName)
+		}
+		if cfg.ConnectionPort <= 0 {
+			return fmt.Errorf("connection_port must be a positive integer for %s", metricTypeName)
+		}
+		if cfg.ConnectionUsername == "" {
+			return fmt.Errorf("connection_username is required for %s", metricTypeName)
+		}
+		if cfg.ConnectionDatabase == "" {
+			return fmt.Errorf("connection_database is required for %s", metricTypeName)
+		}
+		if cfg.ConnectionTimeout <= 0 {
+			return fmt.Errorf("connection_timeout must be a positive integer for %s", metricTypeName)
+		}
+	case "MongoDBConnection":
+		if cfg.ConnectionHost == "" {
+			return fmt.Errorf("connection_host is required for %s", metricTypeName)
+		}
+		if cfg.ConnectionPort <= 0 {
+			return fmt.Errorf("connection_port must be a positive integer for %s", metricTypeName)
+		}
+		if cfg.ConnectionUsername == "" {
+			return fmt.Errorf("connection_username is required for %s", metricTypeName)
+		}
+		if cfg.ConnectionPassword == "" {
+			return fmt.Errorf("connection_password is required for %s", metricTypeName)
+		}
+		if cfg.ConnectionDatabase == "" {
+			return fmt.Errorf("connection_database is required for %s", metricTypeName)
+		}
+		if cfg.ConnectionTimeout <= 0 {
+			return fmt.Errorf("connection_timeout must be a positive integer for %s", metricTypeName)
+		}
+	case "RedisConnection":
+		if cfg.ConnectionHost == "" {
+			return fmt.Errorf("connection_host is required for %s", metricTypeName)
+		}
+		if cfg.ConnectionPort <= 0 {
+			return fmt.Errorf("connection_port must be a positive integer for %s", metricTypeName)
+		}
+		if cfg.ConnectionTimeout <= 0 {
+			return fmt.Errorf("connection_timeout must be a positive integer for %s", metricTypeName)
+		}
+	case "KongConnection":
+ 		// Either explicit admin URL or host+port
+ 		if cfg.KongAdminURL == "" {
+ 			if cfg.ConnectionHost == "" || cfg.ConnectionPort <= 0 {
+ 				return fmt.Errorf("kong_admin_url or connection_host+connection_port are required for %s", metricTypeName)
+ 			}
+ 		}
+ 		if cfg.ConnectionTimeout <= 0 {
+ 			return fmt.Errorf("connection_timeout must be a positive integer for %s", metricTypeName)
+ 		}
+	default:
+ 		// Non-connection metric types: no additional checks here
+ 		return nil
+ 	}
+ 	return nil
 }

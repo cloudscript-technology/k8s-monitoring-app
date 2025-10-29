@@ -61,7 +61,8 @@ type Configuration struct {
 }
 
 // UnmarshalJSON provides lenient parsing for specific fields while keeping the overall schema strict.
-// Currently, it accepts both numbers and numeric strings for `warning_days` to tolerate legacy/bad configs.
+// It accepts both numbers and numeric strings for tolerant integer fields
+// and both booleans and boolean strings for tolerant boolean fields.
 func (c *Configuration) UnmarshalJSON(data []byte) error {
 	// Unmarshal into raw map to avoid early type errors on tolerant fields
 	var m map[string]json.RawMessage
@@ -102,6 +103,21 @@ func (c *Configuration) UnmarshalJSON(data []byte) error {
 		}
 		return 0, fmt.Errorf("invalid integer value")
 	}
+	parseBool := func(v json.RawMessage) (bool, error) {
+		var b bool
+		if err := json.Unmarshal(v, &b); err == nil {
+			return b, nil
+		}
+		var s string
+		if err := json.Unmarshal(v, &s); err == nil {
+			bb, convErr := strconv.ParseBool(s)
+			if convErr != nil {
+				return false, fmt.Errorf("invalid boolean string: %s", s)
+			}
+			return bb, nil
+		}
+		return false, fmt.Errorf("invalid boolean value")
+	}
 
 	// Strings
 	_ = json.Unmarshal(m["health_check_url"], &cfg.HealthCheckURL)
@@ -127,12 +143,42 @@ func (c *Configuration) UnmarshalJSON(data []byte) error {
 	_ = json.Unmarshal(m["kafka_sasl_username"], &cfg.KafkaSaslUsername)
 	_ = json.Unmarshal(m["kafka_sasl_password"], &cfg.KafkaSaslPassword)
 
-	// Ints and bools (strict for non-special fields)
-	_ = json.Unmarshal(m["timeout_seconds"], &cfg.TimeoutSeconds)
-	_ = json.Unmarshal(m["connection_port"], &cfg.ConnectionPort)
-	_ = json.Unmarshal(m["connection_ssl"], &cfg.ConnectionSSL)
-	_ = json.Unmarshal(m["connection_timeout"], &cfg.ConnectionTimeout)
-	_ = json.Unmarshal(m["connection_db"], &cfg.ConnectionDB)
+	// Ints and bools (tolerant parsing for common misconfigurations)
+	if v, ok := m["timeout_seconds"]; ok && len(v) > 0 && string(v) != "null" {
+		if i, err := parseInt(v); err == nil {
+			cfg.TimeoutSeconds = i
+		} else {
+			return fmt.Errorf("invalid timeout_seconds: %w", err)
+		}
+	}
+	if v, ok := m["connection_port"]; ok && len(v) > 0 && string(v) != "null" {
+		if i, err := parseInt(v); err == nil {
+			cfg.ConnectionPort = i
+		} else {
+			return fmt.Errorf("invalid connection_port: %w", err)
+		}
+	}
+	if v, ok := m["connection_timeout"]; ok && len(v) > 0 && string(v) != "null" {
+		if i, err := parseInt(v); err == nil {
+			cfg.ConnectionTimeout = i
+		} else {
+			return fmt.Errorf("invalid connection_timeout: %w", err)
+		}
+	}
+	if v, ok := m["connection_db"]; ok && len(v) > 0 && string(v) != "null" {
+		if i, err := parseInt(v); err == nil {
+			cfg.ConnectionDB = i
+		} else {
+			return fmt.Errorf("invalid connection_db: %w", err)
+		}
+	}
+	if v, ok := m["connection_ssl"]; ok && len(v) > 0 && string(v) != "null" {
+		if b, err := parseBool(v); err == nil {
+			cfg.ConnectionSSL = b
+		} else {
+			return fmt.Errorf("invalid connection_ssl: %w", err)
+		}
+	}
 
 	// Special tolerant fields
 	if v, ok := m["expected_status"]; ok && len(v) > 0 && string(v) != "null" {

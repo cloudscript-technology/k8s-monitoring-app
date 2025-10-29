@@ -4,7 +4,9 @@ import (
 	"context"
 	"crypto/tls"
 	"database/sql"
+	"errors"
 	"fmt"
+	"net"
 	"net/http"
 	"time"
 
@@ -42,9 +44,12 @@ func TestRedisConnection(ctx context.Context, config *applicationMetricModel.Con
 
 	// Configure Redis client
 	opts := &redis.Options{
-		Addr:     fmt.Sprintf("%s:%d", config.ConnectionHost, config.ConnectionPort),
-		Password: config.ConnectionPassword,
-		DB:       config.ConnectionDB,
+		Addr:         fmt.Sprintf("%s:%d", config.ConnectionHost, config.ConnectionPort),
+		Password:     config.ConnectionPassword,
+		DB:           config.ConnectionDB,
+		DialTimeout:  time.Duration(timeout) * time.Second,
+		ReadTimeout:  time.Duration(timeout) * time.Second,
+		WriteTimeout: time.Duration(timeout) * time.Second,
 	}
 
 	if config.ConnectionSSL {
@@ -65,7 +70,9 @@ func TestRedisConnection(ctx context.Context, config *applicationMetricModel.Con
 	result.ConnectionTimeMs = connectionDuration.Milliseconds()
 
 	if err != nil {
-		if ctx.Err() == context.DeadlineExceeded {
+		// Classificar corretamente erro de timeout (contexto ou i/o timeout)
+		var netErr net.Error
+		if connCtx.Err() == context.DeadlineExceeded || errors.Is(err, context.DeadlineExceeded) || (errors.As(err, &netErr) && netErr.Timeout()) {
 			result.ConnectionStatus = StatusTimeout
 			result.ConnectionError = "connection timeout"
 		} else {

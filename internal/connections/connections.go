@@ -12,6 +12,7 @@ import (
 
 	"github.com/go-redis/redis/v8"
 	_ "github.com/go-sql-driver/mysql"
+	_ "github.com/lib/pq"
 	"github.com/rs/zerolog/log"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
@@ -147,7 +148,8 @@ func TestPostgreSQLConnection(ctx context.Context, config *applicationMetricMode
 	result.ConnectionTimeMs = connectionDuration.Milliseconds()
 
 	if err != nil {
-		if ctx.Err() == context.DeadlineExceeded {
+		var netErr net.Error
+		if connCtx.Err() == context.DeadlineExceeded || errors.Is(err, context.DeadlineExceeded) || (errors.As(err, &netErr) && netErr.Timeout()) {
 			result.ConnectionStatus = StatusTimeout
 			result.ConnectionError = "connection timeout"
 		} else {
@@ -227,7 +229,8 @@ func TestMySQLConnection(ctx context.Context, config *applicationMetricModel.Con
 	result.ConnectionTimeMs = connectionDuration.Milliseconds()
 
 	if err != nil {
-		if ctx.Err() == context.DeadlineExceeded {
+		var netErr net.Error
+		if connCtx.Err() == context.DeadlineExceeded || errors.Is(err, context.DeadlineExceeded) || (errors.As(err, &netErr) && netErr.Timeout()) {
 			result.ConnectionStatus = StatusTimeout
 			result.ConnectionError = "connection timeout"
 		} else {
@@ -331,7 +334,8 @@ func TestMongoDBConnection(ctx context.Context, config *applicationMetricModel.C
 	result.ConnectionTimeMs = connectionDuration.Milliseconds()
 
 	if err != nil {
-		if ctx.Err() == context.DeadlineExceeded {
+		var netErr net.Error
+		if connCtx.Err() == context.DeadlineExceeded || errors.Is(err, context.DeadlineExceeded) || (errors.As(err, &netErr) && netErr.Timeout()) {
 			result.ConnectionStatus = StatusTimeout
 			result.ConnectionError = "connection timeout"
 		} else {
@@ -422,7 +426,8 @@ func TestKongConnection(ctx context.Context, config *applicationMetricModel.Conf
 	result.ConnectionTimeMs = connectionDuration.Milliseconds()
 
 	if err != nil {
-		if ctx.Err() == context.DeadlineExceeded {
+		var netErr net.Error
+		if connCtx.Err() == context.DeadlineExceeded || errors.Is(err, context.DeadlineExceeded) || (errors.As(err, &netErr) && netErr.Timeout()) {
 			result.ConnectionStatus = StatusTimeout
 			result.ConnectionError = "connection timeout"
 		} else {

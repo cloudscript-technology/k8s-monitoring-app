@@ -4,11 +4,14 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"html/template"
+	"io"
 	"net/http"
 	"strings"
 
+	application_metric "k8s-monitoring-app/internal/application_metric"
 	"k8s-monitoring-app/internal/core"
 	"k8s-monitoring-app/internal/security"
 	serverModel "k8s-monitoring-app/internal/server/model"
@@ -18,6 +21,7 @@ import (
 	projectModel "k8s-monitoring-app/pkg/project/model"
 
 	"github.com/rs/zerolog/log"
+	yaml "gopkg.in/yaml.v3"
 )
 
 type Handler struct {
@@ -103,6 +107,352 @@ func (h *Handler) Dashboard(sc *core.HTTPServerContext) error {
 		return err
 	}
 
+	return nil
+}
+
+// RenderCadastroImportacao renders the YAML import page
+func (h *Handler) RenderCadastroImportacao(sc *core.HTTPServerContext) error {
+	// Get user info from context (set by auth middleware)
+	userEmail := sc.Get("user_email")
+	userName := sc.Get("user_name")
+	userPicture := sc.Get("user_picture")
+
+	data := map[string]interface{}{
+		"Title":       "Importação YAML",
+		"UserEmail":   userEmail,
+		"UserName":    userName,
+		"UserPicture": userPicture,
+	}
+
+	sc.Response().Header().Set("Content-Type", "text/html")
+	sc.Response().WriteHeader(http.StatusOK)
+
+	if err := h.templates.ExecuteTemplate(sc.Response().Writer, "cadastro-importacao.html", data); err != nil {
+		log.Error().Err(err).Msg("error executing import template")
+		return err
+	}
+
+	return nil
+}
+
+// ImportYAML handles the uploaded YAML, parses documents, and imports them
+func (h *Handler) ImportYAML(sc *core.HTTPServerContext) error {
+	ctx := sc.Request().Context()
+
+	// Support YAML pasted as text (preferred) or fallback to file upload
+	var reader io.Reader
+	yamlText := sc.FormValue("yaml_text")
+	if strings.TrimSpace(yamlText) != "" {
+		reader = strings.NewReader(yamlText)
+	} else {
+		fileHeader, err := sc.FormFile("file")
+		if err != nil {
+			return sc.String(http.StatusBadRequest, "YAML é obrigatório (cole o texto ou envie arquivo)")
+		}
+		f, err := fileHeader.Open()
+		if err != nil {
+			return sc.String(http.StatusBadRequest, "não foi possível abrir o arquivo")
+		}
+		defer f.Close()
+		reader = f
+	}
+
+	type importDoc struct {
+		Kind     string                 `yaml:"kind"`
+		Metadata map[string]interface{} `yaml:"metadata"`
+	}
+
+	// Helper: get string from metadata
+	getStr := func(m map[string]interface{}, key string) string {
+		if v, ok := m[key]; ok && v != nil {
+			if s, ok2 := v.(string); ok2 {
+				return s
+			}
+		}
+		return ""
+	}
+
+	// Normalize configuration keys to match JSON expected by Configuration
+	normalizeConfig := func(metricTypeName string, cfg map[string]interface{}) map[string]interface{} {
+		if cfg == nil {
+			return map[string]interface{}{}
+		}
+		out := map[string]interface{}{}
+
+		// Utility to copy if present
+		copyKey := func(dstKey string, candidates ...string) {
+			for _, c := range candidates {
+				if v, ok := cfg[c]; ok {
+					out[dstKey] = v
+					return
+				}
+			}
+		}
+
+		// Common mappings
+		copyKey("method", "method")
+		// URL / HealthCheck
+		copyKey("health_check_url", "health_check_url", "url", "healthCheckUrl")
+
+		// Distinguish timeout mapping
+		// For HealthCheck (timeout_seconds), for connection types (connection_timeout)
+		if metricTypeName == "HealthCheck" || metricTypeName == "IngressCertificate" || strings.HasPrefix(metricTypeName, "Pod") || metricTypeName == "PvcUsage" || metricTypeName == "KafkaConsumerLag" {
+			copyKey("timeout_seconds", "timeout_seconds", "timeout", "timeoutSeconds")
+		} else {
+			copyKey("connection_timeout", "connection_timeout", "timeout", "timeoutSeconds", "connectionTimeout")
+		}
+
+		// HealthCheck
+		copyKey("expected_status", "expected_status", "expectedStatus")
+
+		// Pods / PVC
+		copyKey("pod_label_selector", "pod_label_selector", "podLabelSelector")
+		copyKey("container_name", "container_name", "containerName")
+		copyKey("pvc_name", "pvc_name", "pvcName")
+		copyKey("pvc_mount_path", "pvc_mount_path", "pvcMountPath")
+
+		// Connections
+		copyKey("connection_host", "connection_host", "host", "connectionHost")
+		copyKey("connection_port", "connection_port", "port", "connectionPort")
+		copyKey("connection_username", "connection_username", "username", "connectionUsername")
+		copyKey("connection_password", "connection_password", "password", "connectionPassword")
+		copyKey("connection_database", "connection_database", "database", "connectionDatabase")
+		copyKey("connection_ssl", "connection_ssl", "ssl", "connectionSSL")
+		copyKey("connection_auth_source", "connection_auth_source", "authSource", "connectionAuthSource")
+		copyKey("connection_db", "connection_db", "db", "connectionDB")
+
+		// Kong
+		copyKey("kong_admin_url", "kong_admin_url", "adminUrl", "kongAdminUrl")
+
+		// Ingress
+		copyKey("ingress_name", "ingress_name", "ingressName")
+		copyKey("ingress_namespace", "ingress_namespace", "ingressNamespace")
+		copyKey("tls_secret_name", "tls_secret_name", "tlsSecretName")
+		copyKey("warning_days", "warning_days", "warningDays")
+
+		// Kafka
+		copyKey("kafka_bootstrap_servers", "kafka_bootstrap_servers", "bootstrapServers")
+		copyKey("kafka_consumer_group", "kafka_consumer_group", "consumerGroup")
+		copyKey("kafka_topic", "kafka_topic", "topic")
+		copyKey("kafka_security_protocol", "kafka_security_protocol", "securityProtocol")
+		copyKey("kafka_sasl_mechanism", "kafka_sasl_mechanism", "saslMechanism")
+		copyKey("kafka_sasl_username", "kafka_sasl_username", "saslUsername")
+		copyKey("kafka_sasl_password", "kafka_sasl_password", "saslPassword")
+		copyKey("kafka_lag_threshold", "kafka_lag_threshold", "lagThreshold")
+
+		return out
+	}
+
+	// Decoder for multiple YAML documents
+	dec := yaml.NewDecoder(reader)
+
+	var results []string // HTML blocks
+	for {
+		var d importDoc
+		if err := dec.Decode(&d); err != nil {
+			if errors.Is(err, io.EOF) {
+				break
+			}
+			// Malformed doc - stop and report
+			results = append(results, fmt.Sprintf(`<div class="alert alert-error">Erro ao decodificar YAML: %s</div>`, template.HTMLEscapeString(err.Error())))
+			break
+		}
+
+		kind := strings.TrimSpace(d.Kind)
+		if kind == "" {
+			results = append(results, `<div class="alert alert-error">Documento sem campo "kind"</div>`)
+			continue
+		}
+
+		switch kind {
+		case "Project":
+			name := getStr(d.Metadata, "name")
+			desc := getStr(d.Metadata, "description")
+
+			if name == "" {
+				results = append(results, `<div class="alert alert-error">Project: campo "name" é obrigatório</div>`)
+				continue
+			}
+
+			// Try to get existing by name
+			proj, err := serverModel.ServerRepos.Project.Get(ctx, name, "name")
+			if err == nil && proj.ID != "" {
+				// Update existing project
+				proj.Description = desc
+				if err := serverModel.ServerRepos.Project.Update(ctx, &proj); err != nil {
+					results = append(results, fmt.Sprintf(`<div class="alert alert-error">Erro ao atualizar projeto "%s": %s</div>`, template.HTMLEscapeString(name), template.HTMLEscapeString(err.Error())))
+					continue
+				}
+				results = append(results, fmt.Sprintf(`<div class="alert alert-success">Projeto "%s" atualizado (ID: %s)</div>`, template.HTMLEscapeString(name), template.HTMLEscapeString(proj.ID)))
+				continue
+			}
+
+			// Create new project
+			p := projectModel.Project{Name: name, Description: desc}
+			if err := serverModel.ServerRepos.Project.Add(ctx, &p); err != nil {
+				results = append(results, fmt.Sprintf(`<div class="alert alert-error">Erro ao criar projeto "%s": %s</div>`, template.HTMLEscapeString(name), template.HTMLEscapeString(err.Error())))
+				continue
+			}
+			results = append(results, fmt.Sprintf(`<div class="alert alert-success">Projeto "%s" criado (ID: %s)</div>`, template.HTMLEscapeString(name), template.HTMLEscapeString(p.ID)))
+
+		case "Application":
+			name := getStr(d.Metadata, "name")
+			desc := getStr(d.Metadata, "description")
+			ns := getStr(d.Metadata, "namespace")
+			projectName := getStr(d.Metadata, "project")
+
+			if name == "" || projectName == "" || ns == "" {
+				results = append(results, `<div class="alert alert-error">Application: campos "name", "project" e "namespace" são obrigatórios</div>`)
+				continue
+			}
+
+			// Ensure project exists
+			proj, err := serverModel.ServerRepos.Project.Get(ctx, projectName, "name")
+			if err != nil {
+				// Create project implicitly
+				np := projectModel.Project{Name: projectName}
+				if err2 := serverModel.ServerRepos.Project.Add(ctx, &np); err2 != nil {
+					results = append(results, fmt.Sprintf(`<div class="alert alert-error">Erro ao criar projeto "%s" para aplicação "%s": %s</div>`, template.HTMLEscapeString(projectName), template.HTMLEscapeString(name), template.HTMLEscapeString(err2.Error())))
+					continue
+				}
+				proj = np
+				results = append(results, fmt.Sprintf(`<div class="alert alert-info">Projeto "%s" criado implicitamente para aplicação "%s" (ID: %s)</div>`, template.HTMLEscapeString(projectName), template.HTMLEscapeString(name), template.HTMLEscapeString(np.ID)))
+			}
+
+			// Check if application exists within project by name
+			apps, err := serverModel.ServerRepos.Application.ListByProject(ctx, proj.ID)
+			if err == nil {
+				for _, a := range apps {
+					if strings.EqualFold(a.Name, name) {
+						// Update existing application
+						a.Description = desc
+						a.Namespace = ns
+						if err := serverModel.ServerRepos.Application.Update(ctx, &a); err != nil {
+							results = append(results, fmt.Sprintf(`<div class="alert alert-error">Erro ao atualizar aplicação "%s": %s</div>`, template.HTMLEscapeString(name), template.HTMLEscapeString(err.Error())))
+							continue
+						}
+						results = append(results, fmt.Sprintf(`<div class="alert alert-success">Aplicação "%s" atualizada em "%s" (ID: %s)</div>`, template.HTMLEscapeString(name), template.HTMLEscapeString(projectName), template.HTMLEscapeString(a.ID)))
+						continue
+					}
+				}
+			}
+
+			// Create new application
+			a := applicationModel.Application{ProjectID: proj.ID, Name: name, Description: desc, Namespace: ns}
+			if err := serverModel.ServerRepos.Application.Add(ctx, &a); err != nil {
+				results = append(results, fmt.Sprintf(`<div class="alert alert-error">Erro ao criar aplicação "%s": %s</div>`, template.HTMLEscapeString(name), template.HTMLEscapeString(err.Error())))
+				continue
+			}
+			results = append(results, fmt.Sprintf(`<div class="alert alert-success">Aplicação "%s" criada (ID: %s)</div>`, template.HTMLEscapeString(name), template.HTMLEscapeString(a.ID)))
+
+		case "ApplicationMetric":
+			appName := getStr(d.Metadata, "application")
+			projName := getStr(d.Metadata, "project")
+			mtName := getStr(d.Metadata, "metricType")
+
+			if appName == "" || projName == "" || mtName == "" {
+				results = append(results, `<div class="alert alert-error">ApplicationMetric: campos "application", "project" e "metricType" são obrigatórios</div>`)
+				continue
+			}
+
+			// Resolve project
+			proj, err := serverModel.ServerRepos.Project.Get(ctx, projName, "name")
+			if err != nil {
+				results = append(results, fmt.Sprintf(`<div class="alert alert-error">Projeto "%s" não encontrado para métrica da aplicação "%s"</div>`, template.HTMLEscapeString(projName), template.HTMLEscapeString(appName)))
+				continue
+			}
+
+			// Resolve application in project
+			apps, err := serverModel.ServerRepos.Application.ListByProject(ctx, proj.ID)
+			if err != nil {
+				results = append(results, fmt.Sprintf(`<div class="alert alert-error">Erro ao listar aplicações do projeto "%s": %s</div>`, template.HTMLEscapeString(projName), template.HTMLEscapeString(err.Error())))
+				continue
+			}
+			var app applicationModel.Application
+			for _, a := range apps {
+				if strings.EqualFold(a.Name, appName) {
+					app = a
+					break
+				}
+			}
+			if app.ID == "" {
+				results = append(results, fmt.Sprintf(`<div class="alert alert-error">Aplicação "%s" não encontrada no projeto "%s"</div>`, template.HTMLEscapeString(appName), template.HTMLEscapeString(projName)))
+				continue
+			}
+
+			// Resolve metric type by name
+			mt, err := serverModel.ServerRepos.MetricType.Get(ctx, mtName, "name")
+			if err != nil {
+				results = append(results, fmt.Sprintf(`<div class="alert alert-error">Tipo de métrica "%s" não encontrado</div>`, template.HTMLEscapeString(mtName)))
+				continue
+			}
+
+			// Normalize configuration
+			var cfgMap map[string]interface{}
+			if rawCfg, ok := d.Metadata["configuration"]; ok && rawCfg != nil {
+				if m, ok2 := rawCfg.(map[string]interface{}); ok2 {
+					cfgMap = normalizeConfig(mt.Name, m)
+				}
+			}
+			if cfgMap == nil {
+				cfgMap = map[string]interface{}{}
+			}
+
+			cfgJSON, err := json.Marshal(cfgMap)
+			if err != nil {
+				results = append(results, fmt.Sprintf(`<div class="alert alert-error">Erro ao converter configuração para JSON: %s</div>`, template.HTMLEscapeString(err.Error())))
+				continue
+			}
+
+			// Validate configuration against model and service rules
+			var cfg applicationMetricModel.Configuration
+			if err := json.Unmarshal(cfgJSON, &cfg); err != nil {
+				results = append(results, fmt.Sprintf(`<div class="alert alert-error">Configuração inválida para "%s": %s</div>`, template.HTMLEscapeString(mt.Name), template.HTMLEscapeString(err.Error())))
+				continue
+			}
+			if err := application_metric.ValidateConfigByType(mt.Name, cfg); err != nil {
+				results = append(results, fmt.Sprintf(`<div class="alert alert-error">Configuração inválida: %s</div>`, template.HTMLEscapeString(err.Error())))
+				continue
+			}
+
+			// Check if metric type already exists for application
+			existingMetrics, err := serverModel.ServerRepos.ApplicationMetric.ListByApplication(ctx, app.ID)
+			if err == nil {
+				for _, em := range existingMetrics {
+					if em.TypeID == mt.ID {
+						// Update existing metric
+						em.Configuration = json.RawMessage(cfgJSON)
+						if err := serverModel.ServerRepos.ApplicationMetric.Update(ctx, &em); err != nil {
+							results = append(results, fmt.Sprintf(`<div class="alert alert-error">Erro ao atualizar métrica "%s": %s</div>`, template.HTMLEscapeString(mt.Name), template.HTMLEscapeString(err.Error())))
+							continue
+						}
+						results = append(results, fmt.Sprintf(`<div class="alert alert-success">Métrica "%s" atualizada para aplicação "%s" (ID: %s)</div>`, template.HTMLEscapeString(mt.Name), template.HTMLEscapeString(app.Name), template.HTMLEscapeString(em.ID)))
+						continue
+					}
+				}
+			}
+
+			// Create new metric
+			am := applicationMetricModel.ApplicationMetric{
+				ApplicationID: app.ID,
+				TypeID:        mt.ID,
+				Configuration: json.RawMessage(cfgJSON),
+			}
+			if err := serverModel.ServerRepos.ApplicationMetric.Add(ctx, &am); err != nil {
+				results = append(results, fmt.Sprintf(`<div class="alert alert-error">Erro ao criar métrica "%s": %s</div>`, template.HTMLEscapeString(mt.Name), template.HTMLEscapeString(err.Error())))
+				continue
+			}
+			results = append(results, fmt.Sprintf(`<div class="alert alert-success">Métrica "%s" criada para aplicação "%s" (ID: %s)</div>`, template.HTMLEscapeString(mt.Name), template.HTMLEscapeString(app.Name), template.HTMLEscapeString(am.ID)))
+
+		default:
+			results = append(results, fmt.Sprintf(`<div class="alert alert-error">Kind desconhecido: %s</div>`, template.HTMLEscapeString(kind)))
+		}
+	}
+
+	// Return HTML fragment with results
+	sc.Response().Header().Set("Content-Type", "text/html")
+	sc.Response().WriteHeader(http.StatusOK)
+	sc.Response().Writer.Write([]byte(strings.Join(results, "\n")))
 	return nil
 }
 

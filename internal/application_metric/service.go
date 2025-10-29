@@ -372,3 +372,10 @@ func validateConfigByType(metricTypeName string, cfg model.Configuration) error 
  	}
  	return nil
 }
+
+// ValidateConfigByType is an exported wrapper to allow other internal packages
+// (e.g., web handlers) to validate configuration consistently with service logic.
+// It delegates to the internal validateConfigByType implementation.
+func ValidateConfigByType(metricTypeName string, cfg model.Configuration) error {
+    return validateConfigByType(metricTypeName, cfg)
+}

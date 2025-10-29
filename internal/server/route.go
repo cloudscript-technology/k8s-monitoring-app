@@ -43,6 +43,8 @@ func bindRoutes(s *core.HTTPServer) {
 		s.Api.GET("/cadastros/projetos", s.WrapHandler(webHandler.RenderCadastroProjects))
 		s.Api.GET("/cadastros/aplicacoes", s.WrapHandler(webHandler.RenderCadastroApplications))
 		s.Api.GET("/cadastros/metricas", s.WrapHandler(webHandler.RenderCadastroMetrics))
+		// YAML Import page
+		s.Api.GET("/cadastros/importacao", s.WrapHandler(webHandler.RenderCadastroImportacao))
 
 		// HTMX partial endpoints
 		apiUI := s.Api.Group("/api/ui")
@@ -55,6 +57,8 @@ func bindRoutes(s *core.HTTPServer) {
 		apiUI.GET("/applications-options", s.WrapHandler(webHandler.GetApplicationsOptions))
 		apiUI.GET("/metric-types-options", s.WrapHandler(webHandler.GetMetricTypesOptions))
 		apiUI.GET("/metric-configuration-fields/:id", s.WrapHandler(webHandler.GetMetricConfigurationFields))
+		// YAML Import processing endpoint
+		apiUI.POST("/import-yaml", s.WrapHandler(webHandler.ImportYAML))
 
 		// DELETE endpoints for UI
 		apiUI.DELETE("/metrics/:id", s.WrapHandler(webHandler.DeleteMetric))

@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Importação via YAML - K8s Monitoring</title>
+    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+
+<body>
+    <nav class="navbar">
+        <div class="container">
+            <div class="navbar-brand">
+                <h1>🚀 K8s Monitoring</h1>
+            </div>
+            <div class="navbar-menu">
+                <a href="/" class="nav-link">Dashboard</a>
+                <div class="dropdown">
+                    <button class="nav-link dropdown-toggle" onclick="toggleDropdown()">
+                        Cadastros
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <polyline points="6 9 12 15 18 9"></polyline>
+                        </svg>
+                    </button>
+                    <div class="dropdown-menu" id="cadastrosDropdown">
+                        <a href="/cadastros/projetos" class="dropdown-item">Projetos</a>
+                        <a href="/cadastros/aplicacoes" class="dropdown-item">Aplicações</a>
+                        <a href="/cadastros/metricas" class="dropdown-item">Métricas</a>
+                        <a href="/cadastros/importacao" class="dropdown-item active">Importação YAML</a>
+                    </div>
+                </div>
+                {{ if .UserEmail }}
+                <div class="user-info">
+                    <div class="user-avatar-container">
+                        {{ if .UserPicture }}
+                        <img src="{{ .UserPicture }}" alt="{{ .UserName }}" class="user-avatar"
+                            onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                        <div class="user-avatar-placeholder" style="display: none;">{{ firstChar .UserName }}</div>
+                        {{ else }}
+                        <div class="user-avatar-placeholder">{{ firstChar .UserName }}</div>
+                        {{ end }}
+                    </div>
+                    <div class="user-details">
+                        <span class="user-name">{{ .UserName }}</span>
+                        <span class="user-email">{{ .UserEmail }}</span>
+                    </div>
+                    <a href="/auth/logout" class="logout-btn" title="Logout">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <path d="M9 21H5a2 2 0 0 1-2-2V5a 2 2 0 0 1 2-2h4"></path>
+                            <polyline points="16 17 21 12 16 7"></polyline>
+                            <line x1="21" y1="12" x2="9" y2="12"></line>
+                        </svg>
+                    </a>
+                </div>
+                {{ end }}
+            </div>
+        </div>
+    </nav>
+
+    <main class="main-content">
+        <div class="container">
+            <div class="form-container">
+                <div class="form-header">
+                    <h2>Importação via YAML</h2>
+                    <p>Faça upload de um arquivo YAML com Projetos, Aplicações e Métricas.</p>
+                </div>
+
+                <div class="form-card">
+                    <form id="yamlImportForm" hx-post="/api/ui/import-yaml" hx-target="#import-result"
+                        hx-swap="innerHTML">
+                        <div class="form-group">
+                            <label for="yamlText">Cole seu YAML aqui:</label>
+                            <textarea id="yamlText" name="yaml_text" rows="18"
+                                placeholder="Cole aqui os documentos YAML separados por '---'"
+                                style="width:100%; font-family: monospace;"></textarea>
+                        </div>
+                        <div class="form-actions">
+                            <button type="submit" class="btn btn-primary">Importar</button>
+                            <button type="button" class="btn btn-secondary" onclick="resetImportForm()">Limpar</button>
+                        </div>
+                    </form>
+                    <div id="import-result" class="result-container" style="margin-top: 16px;"></div>
+                </div>
+
+                <div class="form-card" style="margin-top: 20px;">
+                    <div class="form-header">
+                        <h3>Exemplo de YAML</h3>
+                        <p>Formate seus cadastros conforme o exemplo abaixo.</p>
+                    </div>
+                    <pre style="overflow:auto;">
+kind: Project
+metadata:
+  name: k8s-monitoring-app
+  description: "K8s Monitoring App"
+---
+kind: Application
+metadata:
+  name: app1
+  description: "App1"
+  namespace: cluster-monitoring
+  project: k8s-monitoring-app
+---
+kind: ApplicationMetric
+metadata:
+  application: app1
+  project: k8s-monitoring-app
+  metricType: HealthCheck
+  configuration:
+    expectedStatus: 200
+    timeout: 5
+    method: GET
+    url: http://app1.cluster-monitoring.svc.cluster.local/health
+</pre>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer class="footer">
+        <div class="container">
+            <p>K8s Monitoring App - Real-time Kubernetes Monitoring</p>
+        </div>
+    </footer>
+
+    <script>
+        function toggleDropdown() {
+            const dropdown = document.getElementById('cadastrosDropdown');
+            dropdown.classList.toggle('show');
+        }
+
+        // Close dropdown when clicking outside
+        window.onclick = function (event) {
+            if (!event.target.matches('.dropdown-toggle') && !event.target.closest('.dropdown-toggle')) {
+                const dropdowns = document.getElementsByClassName('dropdown-menu');
+                for (let i = 0; i < dropdowns.length; i++) {
+                    const openDropdown = dropdowns[i];
+                    if (openDropdown.classList.contains('show')) {
+                        openDropdown.classList.remove('show');
+                    }
+                }
+            }
+        }
+
+        function resetImportForm() {
+            document.getElementById('yamlImportForm').reset();
+            document.getElementById('import-result').innerHTML = '';
+        }
+    </script>
+</body>
+
+</html>

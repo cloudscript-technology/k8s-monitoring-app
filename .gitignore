@@ -18,3 +18,4 @@ tag.txt
 /test/.env_test
 data
 bin
+.entities

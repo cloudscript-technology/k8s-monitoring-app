@@ -244,6 +244,75 @@
                 }
             });
         })();
+
+        // Persistência dos filtros do dashboard no navegador
+        (function () {
+            const STORAGE_PREFIX = 'k8s-monitoring:dashboard:';
+            const FILTER_IDS = ['filterProject', 'filterApplication', 'filterMetricType'];
+
+            function saveFilter(id) {
+                try {
+                    const el = document.getElementById(id);
+                    if (!el) return;
+                    const val = el.value || '';
+                    localStorage.setItem(STORAGE_PREFIX + id, val);
+                } catch (_) { /* ignorar storage indisponível */ }
+            }
+
+            function hasOption(el, val) {
+                if (!el || !val) return false;
+                for (let i = 0; i < el.options.length; i++) {
+                    if (el.options[i].value === val) return true;
+                }
+                return false;
+            }
+
+            function restoreFilter(id) {
+                try {
+                    const el = document.getElementById(id);
+                    if (!el) return;
+                    const saved = localStorage.getItem(STORAGE_PREFIX + id);
+                    if (!saved) return;
+                    // Só aplica se a opção existir nas opções carregadas
+                    if (hasOption(el, saved)) {
+                        el.value = saved;
+                    }
+                } catch (_) { /* ignorar storage indisponível */ }
+            }
+
+            // Salvar ao mudar
+            FILTER_IDS.forEach(id => {
+                const el = document.getElementById(id);
+                if (el) {
+                    el.addEventListener('change', () => saveFilter(id));
+                }
+            });
+
+            // Restaurar após HTMX popular as opções dos selects
+            document.addEventListener('htmx:afterSwap', function (evt) {
+                const target = (evt.detail && evt.detail.target) || evt.target;
+                const id = target && target.id;
+                if (!id) return;
+                if (FILTER_IDS.includes(id)) {
+                    restoreFilter(id);
+                    // Se projeto foi restaurado, dispare atualização de aplicações
+                    if (id === 'filterProject' && window.htmx) {
+                        htmx.trigger('#filterProject', 'change');
+                    } else if (window.htmx) {
+                        // Atualiza resultados do dashboard
+                        htmx.trigger('#dashboard-filters', 'change');
+                    }
+                }
+            });
+
+            // Tentativa inicial de restauração (caso as opções já estejam disponíveis)
+            document.addEventListener('DOMContentLoaded', function () {
+                FILTER_IDS.forEach(restoreFilter);
+                if (window.htmx) {
+                    htmx.trigger('#dashboard-filters', 'change');
+                }
+            });
+        })();
     </script>
 </body>
 

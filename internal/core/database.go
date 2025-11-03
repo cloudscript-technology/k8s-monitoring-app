@@ -19,16 +19,28 @@ func ConnectDatabase() (*sql.DB, error) {
 		return nil, fmt.Errorf("failed to create database directory: %s", err.Error())
 	}
 
-	db, err := apmsql.Open("sqlite3", env.DB_PATH)
-	if err != nil {
-		return db, fmt.Errorf("failed to connect to database: %s | %s", err.Error(), env.DB_PATH)
-	}
+    db, err := apmsql.Open("sqlite3", env.DB_PATH)
+    if err != nil {
+        return db, fmt.Errorf("failed to connect to database: %s | %s", err.Error(), env.DB_PATH)
+    }
+
+    // Limit connection pool to reduce concurrent writers (SQLite is single-writer)
+    db.SetMaxOpenConns(1)
+    db.SetMaxIdleConns(1)
+
+    // Improve concurrency and reduce lock contention
+    if _, err = db.Exec("PRAGMA journal_mode = WAL"); err != nil {
+        return db, fmt.Errorf("failed to set WAL mode: %s", err.Error())
+    }
+    if _, err = db.Exec("PRAGMA busy_timeout = 5000"); err != nil {
+        return db, fmt.Errorf("failed to set busy_timeout: %s", err.Error())
+    }
 
 	// Enable foreign keys for SQLite
-	_, err = db.Exec("PRAGMA foreign_keys = ON")
-	if err != nil {
-		return db, fmt.Errorf("failed to enable foreign keys: %s", err.Error())
-	}
+    _, err = db.Exec("PRAGMA foreign_keys = ON")
+    if err != nil {
+        return db, fmt.Errorf("failed to enable foreign keys: %s", err.Error())
+    }
 
 	var count int
 	err = db.QueryRow("SELECT 1 AS count;").Scan(&count)

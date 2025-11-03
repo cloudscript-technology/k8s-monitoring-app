@@ -118,7 +118,8 @@ func (m *MonitoringService) collectMetrics() {
 				Str("metric_type", metricType.Name).
 				Msg("failed to collect metric")
 
-			if env.SLACK_ALERTS_ENABLED && env.SLACK_WEBHOOK_URL != "" {
+			// Only alert for specific metric types
+			if env.SLACK_ALERTS_ENABLED && env.SLACK_WEBHOOK_URL != "" && isAlertEligible(metricType.Name) {
 				alreadySent, checkErr := m.hasSentAlertRecently(ctx, appMetric.ID)
 				if checkErr != nil {
 					log.Warn().Err(checkErr).Msg("failed to check daily alert dedup")
@@ -742,35 +743,7 @@ func shouldAlert(metricTypeName string, v applicationMetricValueModel.MetricValu
 			return true, reason
 		}
 		return false, ""
-	case "PodStatus":
-		if !v.PodReady || (v.PodPhase != "Running") {
-			reason := fmt.Sprintf("phase=%s ready=%t (%d/%d ready)", v.PodPhase, v.PodReady, v.ReadyPods, v.TotalPods)
-			return true, reason
-		}
-		return false, ""
-	case "IngressCertificate":
-		if v.CertificateStatus == "expired" || v.CertificateStatus == "error" || v.CertificateStatus == "not_found" {
-			reason := v.CertificateStatus
-			if v.CertificateError != "" {
-				reason = fmt.Sprintf("%s - %s", reason, v.CertificateError)
-			}
-			return true, reason
-		}
-		// Optionally alert on expiring soon
-		if v.CertificateStatus == "expiring_soon" {
-			return true, fmt.Sprintf("certificate expiring in %d days", v.CertificateDaysToExpire)
-		}
-		return false, ""
-	case "KafkaConsumerLag":
-		if v.KafkaLagStatus == "critical" || v.KafkaLagStatus == "error" {
-			reason := fmt.Sprintf("lag=%d group=%s", v.KafkaTotalLag, v.KafkaConsumerGroup)
-			if v.KafkaError != "" {
-				reason = fmt.Sprintf("%s - %s", reason, v.KafkaError)
-			}
-			return true, reason
-		}
-		return false, ""
-	case "RedisConnection", "PostgreSQLConnection", "MongoDBConnection", "MySQLConnection", "KongConnection":
+	case "RedisConnection", "PostgreSQLConnection", "MongoDBConnection":
 		if v.ConnectionStatus != "connected" {
 			reason := v.ConnectionStatus
 			if v.ConnectionError != "" {
@@ -780,7 +753,17 @@ func shouldAlert(metricTypeName string, v applicationMetricValueModel.MetricValu
 		}
 		return false, ""
 	default:
-		// Resource usage metrics currently have no thresholds configured
+		// Alerts disabled for other metric types
 		return false, ""
+	}
+}
+
+// isAlertEligible limits Slack alerts to specific metric types requested
+func isAlertEligible(metricTypeName string) bool {
+	switch metricTypeName {
+	case "HealthCheck", "RedisConnection", "PostgreSQLConnection", "MongoDBConnection":
+		return true
+	default:
+		return false
 	}
 }

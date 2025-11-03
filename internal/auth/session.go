@@ -46,7 +46,8 @@ func CreateSession(ctx context.Context, email, name, picture string, token *oaut
 		return nil, fmt.Errorf("failed to generate session ID: %w", err)
 	}
 
-	now := time.Now()
+	// Always use UTC to avoid timezone-related inconsistencies
+	now := time.Now().UTC()
 	expiresAt := now.Add(24 * time.Hour) // Session valid for 24 hours
 
 	session := &Session{
@@ -56,12 +57,12 @@ func CreateSession(ctx context.Context, email, name, picture string, token *oaut
 		UserPicture:  picture,
 		AccessToken:  token.AccessToken,
 		RefreshToken: token.RefreshToken,
-		TokenExpiry:  token.Expiry,
+		TokenExpiry:  token.Expiry.UTC(),
 		CreatedAt:    now,
 		ExpiresAt:    expiresAt,
 	}
 
-    query := `
+	query := `
         INSERT INTO sessions (id, user_email, user_name, user_picture, access_token, refresh_token, token_expiry, created_at, expires_at)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     `
@@ -91,15 +92,16 @@ func GetSession(ctx context.Context, sessionID string) (*Session, error) {
 		return nil, fmt.Errorf("failed to connect to database: %w", err)
 	}
 
-    query := `
+	// Compare against current time using a parameter to avoid dialect-specific functions
+	query := `
         SELECT id, user_email, user_name, user_picture, access_token, refresh_token, token_expiry, created_at, expires_at
         FROM sessions
-        WHERE id = ? AND expires_at > DATETIME('now')
+        WHERE id = ? AND expires_at > ?
     `
 
 	var session Session
 	var userPicture sql.NullString
-	err = db.QueryRowContext(ctx, query, sessionID).Scan(
+	err = db.QueryRowContext(ctx, query, sessionID, time.Now().UTC()).Scan(
 		&session.ID,
 		&session.UserEmail,
 		&session.UserName,
@@ -130,7 +132,7 @@ func DeleteSession(ctx context.Context, sessionID string) error {
 		return fmt.Errorf("failed to connect to database: %w", err)
 	}
 
-    query := `DELETE FROM sessions WHERE id = ?`
+	query := `DELETE FROM sessions WHERE id = ?`
 	_, err = db.ExecContext(ctx, query, sessionID)
 	if err != nil {
 		return fmt.Errorf("failed to delete session: %w", err)
@@ -146,8 +148,8 @@ func CleanupExpiredSessions(ctx context.Context) error {
 		return fmt.Errorf("failed to connect to database: %w", err)
 	}
 
-    query := `DELETE FROM sessions WHERE expires_at <= DATETIME('now')`
-	result, err := db.ExecContext(ctx, query)
+	query := `DELETE FROM sessions WHERE expires_at <= ?`
+	result, err := db.ExecContext(ctx, query, time.Now().UTC())
 	if err != nil {
 		return fmt.Errorf("failed to cleanup expired sessions: %w", err)
 	}
@@ -167,12 +169,13 @@ func UpdateSessionExpiry(ctx context.Context, sessionID string) error {
 		return fmt.Errorf("failed to connect to database: %w", err)
 	}
 
-	expiresAt := time.Now().Add(24 * time.Hour)
-    query := `UPDATE sessions SET expires_at = ? WHERE id = ?`
+	// Extend expiry based on UTC time
+	expiresAt := time.Now().UTC().Add(24 * time.Hour)
+	query := `UPDATE sessions SET expires_at = ? WHERE id = ?`
 
 	_, err = db.ExecContext(ctx, query, expiresAt, sessionID)
 	if err != nil {
-		return fmt.Errorf("failed to update session expiry: %w", err)
+		return fmt.Errorf("update session error for session %s: %s", sessionID, err.Error())
 	}
 
 	return nil

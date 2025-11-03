@@ -47,15 +47,16 @@
     <!-- Main Metrics Grid -->
     <div class="metrics-grid">
         <!-- Pods Status -->
+        {{ $podMetric := index .MetricsByType "PodStatus" }}
+        {{ if and $podMetric $podMetric.LatestValue }}
         <div class="metric-card pods-card">
             <div class="metric-card-label">
                 <span class="metric-icon">🔵</span>
                 <span>Pods</span>
             </div>
             <div class="metric-card-content">
-                {{ $podMetric := index .MetricsByType "PodStatus" }}
                 {{ $nodeMetric := index .MetricsByType "PodActiveNodes" }}
-                {{ if and $podMetric $podMetric.LatestValue }}
+
                 {{ $phase := index $podMetric.LatestValue.Value "pod_phase" }}
                 {{ $ready := index $podMetric.LatestValue.Value "pod_ready" }}
                 {{ $restartCount := index $podMetric.LatestValue.Value "restart_count" }}
@@ -85,7 +86,6 @@
                 {{ $podTitle = printf "Pod status: %s" $phase }}
                 {{ end }}
 
-                {{ if and $podMetric $podMetric.LatestValue }}
                 {{ $totalPods := index $podMetric.LatestValue.Value "total_pods" }}
                 <div class="pod-indicators">
                     {{ if eq $totalPods 1.0 }}
@@ -102,27 +102,23 @@
                     <span class="pod-count {{ $podClass }}" title="{{ $podTitle }}">2</span>
                     <span class="pod-count {{ $podClass }}" title="{{ $podTitle }}">3</span>
                     <span class="pod-count-more">+{{ printf "%.0f" (sub $totalPods 3.0) }}</span>
-                    {{ else }}
-                    <span class="metric-no-data">No data</span>
+
                     {{ end }}
+
                 </div>
-                {{ else }}
-                <span class="metric-no-data">No data</span>
-                {{ end }}
-                {{ else }}
-                <span class="metric-no-data">Not configured</span>
-                {{ end }}
             </div>
         </div>
+        {{ end }}
 
         <!-- Health Check -->
+        {{ $healthMetric := index .MetricsByType "HealthCheck" }}
+        {{ if and $healthMetric (or $healthMetric.LatestValue $healthMetric.Configuration) }}
         <div class="metric-card health-card">
             <div class="metric-card-label">
                 <span class="metric-icon">💚</span>
                 <span>Health</span>
             </div>
             <div class="metric-card-content">
-                {{ $healthMetric := index .MetricsByType "HealthCheck" }}
                 {{ if and $healthMetric $healthMetric.LatestValue }}
                 {{ $status := index $healthMetric.LatestValue.Value "status" }}
                 {{ $statusCode := index $healthMetric.LatestValue.Value "status_code" }}
@@ -148,20 +144,20 @@
                     <span class="status-icon">⏱</span>
                     <span class="status-text">Waiting...</span>
                 </div>
-                {{ else }}
-                <span class="metric-no-data">Not configured</span>
                 {{ end }}
             </div>
         </div>
+        {{ end }}
 
         <!-- Certificate -->
+        {{ $certMetric := index .MetricsByType "IngressCertificate" }}
+        {{ if and $certMetric (or $certMetric.LatestValue $certMetric.Configuration) }}
         <div class="metric-card cert-card">
             <div class="metric-card-label">
                 <span class="metric-icon">🔒</span>
                 <span>Certificate</span>
             </div>
             <div class="metric-card-content">
-                {{ $certMetric := index .MetricsByType "IngressCertificate" }}
                 {{ if and $certMetric $certMetric.LatestValue }}
                 {{ $status := index $certMetric.LatestValue.Value "certificate_status" }}
                 {{ $daysToExpire := index $certMetric.LatestValue.Value "certificate_days_to_expire" }}
@@ -201,21 +197,20 @@
                     <span class="status-icon">⏱</span>
                     <span class="status-text">Waiting...</span>
                 </div>
-                {{ else }}
-                <span class="metric-no-data">Not configured</span>
                 {{ end }}
             </div>
         </div>
+        {{ end }}
 
         <!-- Memory -->
+        {{ $memoryMetric := index .MetricsByType "PodMemoryUsage" }}
+        {{ if and $memoryMetric $memoryMetric.LatestValue }}
         <div class="metric-card resource-card">
             <div class="metric-card-label">
                 <span class="metric-icon">💾</span>
                 <span>Memory</span>
             </div>
             <div class="metric-card-content">
-                {{ $memoryMetric := index .MetricsByType "PodMemoryUsage" }}
-                {{ if and $memoryMetric $memoryMetric.LatestValue }}
                 {{ $usage := index $memoryMetric.LatestValue.Value "memory_usage_bytes" }}
                 {{ $limit := index $memoryMetric.LatestValue.Value "memory_limit_bytes" }}
                 {{ $percent := index $memoryMetric.LatestValue.Value "memory_percent" }}
@@ -230,21 +225,19 @@
                     <div class="resource-value">{{ printf "%.0f" $percent }}%</div>
                 </div>
                 <div class="metric-detail">{{ printf "%.0f" $usageMB }} / {{ printf "%.0f" $limitMB }} MB</div>
-                {{ else }}
-                <span class="metric-no-data">Not configured</span>
-                {{ end }}
             </div>
         </div>
+        {{ end }}
 
         <!-- CPU -->
+        {{ $cpuMetric := index .MetricsByType "PodCpuUsage" }}
+        {{ if and $cpuMetric $cpuMetric.LatestValue }}
         <div class="metric-card resource-card">
             <div class="metric-card-label">
                 <span class="metric-icon">⚡</span>
                 <span>CPU</span>
             </div>
             <div class="metric-card-content">
-                {{ $cpuMetric := index .MetricsByType "PodCpuUsage" }}
-                {{ if and $cpuMetric $cpuMetric.LatestValue }}
                 {{ $usage := index $cpuMetric.LatestValue.Value "cpu_usage_millicores" }}
                 {{ $limit := index $cpuMetric.LatestValue.Value "cpu_limit_millicores" }}
                 {{ $percent := index $cpuMetric.LatestValue.Value "cpu_percent" }}
@@ -256,21 +249,19 @@
                     <div class="resource-value">{{ printf "%.1f" $percent }}%</div>
                 </div>
                 <div class="metric-detail">{{ $usage }} / {{ $limit }} m</div>
-                {{ else }}
-                <span class="metric-no-data">Not configured</span>
-                {{ end }}
             </div>
         </div>
+        {{ end }}
 
         <!-- Disk (PVC) -->
+        {{ $pvcMetric := index .MetricsByType "PvcUsage" }}
+        {{ if and $pvcMetric $pvcMetric.LatestValue }}
         <div class="metric-card resource-card">
             <div class="metric-card-label">
                 <span class="metric-icon">💿</span>
                 <span>Disk</span>
             </div>
             <div class="metric-card-content">
-                {{ $pvcMetric := index .MetricsByType "PvcUsage" }}
-                {{ if and $pvcMetric $pvcMetric.LatestValue }}
                 {{ $used := index $pvcMetric.LatestValue.Value "pvc_used_bytes" }}
                 {{ $capacity := index $pvcMetric.LatestValue.Value "pvc_capacity_bytes" }}
                 {{ $percent := index $pvcMetric.LatestValue.Value "pvc_percent" }}
@@ -285,20 +276,19 @@
                     <div class="resource-value">{{ printf "%.0f" $percent }}%</div>
                 </div>
                 <div class="metric-detail">{{ printf "%.1f" $usedGB }} / {{ printf "%.1f" $capacityGB }} GB</div>
-                {{ else }}
-                <span class="metric-no-data">Not configured</span>
-                {{ end }}
             </div>
         </div>
+        {{ end }}
 
         <!-- Kafka Lag -->
+        {{ $kafkaMetric := index .MetricsByType "KafkaConsumerLag" }}
+        {{ if and $kafkaMetric (or $kafkaMetric.LatestValue $kafkaMetric.Configuration) }}
         <div class="metric-card kafka-card">
             <div class="metric-card-label">
                 <span class="metric-icon">📨</span>
                 <span>Kafka Lag</span>
             </div>
             <div class="metric-card-content">
-                {{ $kafkaMetric := index .MetricsByType "KafkaConsumerLag" }}
                 {{ if and $kafkaMetric $kafkaMetric.LatestValue }}
                 {{ $status := index $kafkaMetric.LatestValue.Value "kafka_lag_status" }}
                 {{ $totalLag := index $kafkaMetric.LatestValue.Value "kafka_total_lag" }}
@@ -334,11 +324,10 @@
                     <span class="status-icon">⏱</span>
                     <span class="status-text">Waiting...</span>
                 </div>
-                {{ else }}
-                <span class="metric-no-data">Not configured</span>
                 {{ end }}
             </div>
         </div>
+        {{ end }}
     </div>
 
     <!-- Connection Metrics (if any) -->

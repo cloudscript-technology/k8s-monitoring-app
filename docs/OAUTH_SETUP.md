@@ -71,6 +71,7 @@ GOOGLE_CLIENT_ID=your-client-id-here.apps.googleusercontent.com
 GOOGLE_CLIENT_SECRET=your-client-secret-here
 GOOGLE_REDIRECT_URL=http://localhost:8080/auth/callback
 ALLOWED_GOOGLE_DOMAINS=yourdomain.com,anotherdomain.com
+ALLOWED_GOOGLE_EMAILS=user1@yourdomain.com,user2@anotherdomain.com
 ```
 
 ### Environment Variables Explained
@@ -81,6 +82,7 @@ ALLOWED_GOOGLE_DOMAINS=yourdomain.com,anotherdomain.com
 | `GOOGLE_CLIENT_SECRET` | Yes | OAuth 2.0 Client Secret from Google Cloud Console | `GOCSPX-abc123def456` |
 | `GOOGLE_REDIRECT_URL` | Yes | Callback URL for OAuth flow (must match Google Console) | `https://your-domain.com/auth/callback` |
 | `ALLOWED_GOOGLE_DOMAINS` | No | Comma-separated list of allowed email domains. If empty, all domains are allowed | `company.com,partner.com` |
+| `ALLOWED_GOOGLE_EMAILS` | No | Comma-separated list of allowed email addresses. If set, only listed emails can login (in addition to domain rules) | `user1@company.com,user2@partner.com` |
 
 ### Production Configuration Example
 
@@ -90,6 +92,7 @@ GOOGLE_CLIENT_ID=123456789-abc.apps.googleusercontent.com
 GOOGLE_CLIENT_SECRET=GOCSPX-abc123def456
 GOOGLE_REDIRECT_URL=https://monitoring.yourcompany.com/auth/callback
 ALLOWED_GOOGLE_DOMAINS=yourcompany.com
+ALLOWED_GOOGLE_EMAILS=admin@yourcompany.com
 ```
 
 ### Local Development Example
@@ -100,6 +103,7 @@ GOOGLE_CLIENT_ID=123456789-xyz.apps.googleusercontent.com
 GOOGLE_CLIENT_SECRET=GOCSPX-xyz789uvw012
 GOOGLE_REDIRECT_URL=http://localhost:8080/auth/callback
 ALLOWED_GOOGLE_DOMAINS=yourcompany.com,gmail.com
+ALLOWED_GOOGLE_EMAILS=
 ```
 
 ## Database Migration

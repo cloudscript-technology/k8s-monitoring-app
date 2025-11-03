@@ -9,23 +9,24 @@ import (
 )
 
 var (
-	ENV                         string
-	PORT                        int
-	DB_PATH                     string
-	METRICS_RETENTION_DAYS      int
-	METRICS_CLEANUP_INTERVAL    string
-	METRICS_COLLECTION_INTERVAL int // Collection interval in seconds (default: 60)
+    ENV                         string
+    PORT                        int
+    DB_PATH                     string
+    METRICS_RETENTION_DAYS      int
+    METRICS_CLEANUP_INTERVAL    string
+    METRICS_COLLECTION_INTERVAL int // Collection interval in seconds (default: 60)
 
 	// Slack Alerts Configuration
 	SLACK_WEBHOOK_URL          string
 	SLACK_ALERTS_ENABLED       bool
 	SLACK_ALERTS_DEDUP_MINUTES int // Deduplication window in minutes (default: 10)
 
-	// OAuth Configuration
-	GOOGLE_CLIENT_ID       string
-	GOOGLE_CLIENT_SECRET   string
-	GOOGLE_REDIRECT_URL    string
-	ALLOWED_GOOGLE_DOMAINS string // Comma-separated list of allowed domains
+    // OAuth Configuration
+    GOOGLE_CLIENT_ID       string
+    GOOGLE_CLIENT_SECRET   string
+    GOOGLE_REDIRECT_URL    string
+    ALLOWED_GOOGLE_DOMAINS string // Comma-separated list of allowed domains
+    ALLOWED_GOOGLE_EMAILS  string // Comma-separated list of allowed email addresses (optional)
 )
 
 func GetEnv() error {
@@ -93,11 +94,12 @@ func GetEnv() error {
 		SLACK_ALERTS_DEDUP_MINUTES = 10
 	}
 
-	// OAuth Configuration
-	GOOGLE_CLIENT_ID = os.Getenv("GOOGLE_CLIENT_ID")
-	GOOGLE_CLIENT_SECRET = os.Getenv("GOOGLE_CLIENT_SECRET")
-	GOOGLE_REDIRECT_URL = os.Getenv("GOOGLE_REDIRECT_URL")
-	ALLOWED_GOOGLE_DOMAINS = os.Getenv("ALLOWED_GOOGLE_DOMAINS")
+    // OAuth Configuration
+    GOOGLE_CLIENT_ID = os.Getenv("GOOGLE_CLIENT_ID")
+    GOOGLE_CLIENT_SECRET = os.Getenv("GOOGLE_CLIENT_SECRET")
+    GOOGLE_REDIRECT_URL = os.Getenv("GOOGLE_REDIRECT_URL")
+    ALLOWED_GOOGLE_DOMAINS = os.Getenv("ALLOWED_GOOGLE_DOMAINS")
+    ALLOWED_GOOGLE_EMAILS = os.Getenv("ALLOWED_GOOGLE_EMAILS")
 
 	// Metrics retention configuration (default: 30 days)
 	retentionDays := os.Getenv("METRICS_RETENTION_DAYS")

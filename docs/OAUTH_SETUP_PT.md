@@ -289,6 +289,7 @@ stringData:
   GOOGLE_CLIENT_SECRET: "seu-client-secret"
   GOOGLE_REDIRECT_URL: "https://monitoring.empresa.com/auth/callback"
   ALLOWED_GOOGLE_DOMAINS: "empresa.com"
+  ALLOWED_GOOGLE_EMAILS: "admin@empresa.com,dev@empresa.com"
 ```
 
 ```yaml

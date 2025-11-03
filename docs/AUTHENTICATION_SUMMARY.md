@@ -62,6 +62,7 @@ GOOGLE_CLIENT_ID      string
 GOOGLE_CLIENT_SECRET  string
 GOOGLE_REDIRECT_URL   string
 ALLOWED_GOOGLE_DOMAINS string
+ALLOWED_GOOGLE_EMAILS string
 ```
 
 ### 5. Server Integration

@@ -41,7 +41,7 @@ func AuthMiddleware() echo.MiddlewareFunc {
 
 			// Extend session expiry on each request
 			if err := UpdateSessionExpiry(ctx, session.ID); err != nil {
-				log.Error().Str("session_id", session.ID).Msg("Failed to update session expiry")
+				log.Error().Str("session_id", session.ID).Msgf("Failed to update session expiry: %s", err.Error())
 			}
 
 			return next(c)

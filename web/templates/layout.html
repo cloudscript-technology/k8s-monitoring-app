@@ -67,15 +67,46 @@
             <div class="dashboard">
                 <div class="dashboard-header">
                     <h2>Dashboard</h2>
-                    <div class="refresh-info">
-                        <span class="status-indicator"></span>
-                        Auto-refresh: 10s
-                    </div>
                 </div>
 
-                <div id="projects-grid" class="projects-grid" hx-get="/api/ui/projects"
-                    hx-trigger="load, visibility:visible" hx-swap="morphdom settle:200ms">
-                    <div class="loading">Loading projects...</div>
+                <form id="dashboard-filters" class="filters-bar" 
+                      hx-get="/api/ui/dashboard-results"
+                      hx-trigger="change from:#filterProject, change from:#filterApplication, change from:#filterMetricType"
+                      hx-target="#dashboard-results"
+                      hx-include="#dashboard-filters"
+                      style="display:flex; gap:12px; align-items:flex-end; flex-wrap:wrap;">
+                    <div class="form-group">
+                        <label for="filterProject">Projeto</label>
+                        <select id="filterProject" name="project_id"
+                                hx-get="/api/ui/projects-options"
+                                hx-trigger="load"
+                                hx-target="#filterProject"
+                                hx-swap="innerHTML"></select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="filterApplication">Aplicação</label>
+                        <select id="filterApplication" name="application_id"
+                                hx-get="/api/ui/applications-options"
+                                hx-trigger="change from:#filterProject, load"
+                                hx-include="#filterProject"
+                                hx-target="#filterApplication"
+                                hx-swap="innerHTML"></select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="filterMetricType">Tipo de Métrica</label>
+                        <select id="filterMetricType" name="metric_type_id"
+                                hx-get="/api/ui/metric-types-options"
+                                hx-trigger="load"
+                                hx-target="#filterMetricType"
+                                hx-swap="innerHTML"></select>
+                    </div>
+
+                    
+                </form>
+
+                <div id="dashboard-results" class="projects-grid">
                 </div>
             </div>
         </div>

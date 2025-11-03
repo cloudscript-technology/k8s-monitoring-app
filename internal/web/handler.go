@@ -610,8 +610,10 @@ func (h *Handler) GetProjectsOptions(sc *core.HTTPServerContext) error {
 	sc.Response().Header().Set("Content-Type", "text/html")
 	sc.Response().WriteHeader(http.StatusOK)
 
-	// Write default option
-	sc.Response().Writer.Write([]byte(`<option value="">Selecione um projeto</option>`))
+    // Write default option
+    sc.Response().Writer.Write([]byte(`<option value="">Selecione um projeto</option>`))
+    // Write "Todos" option (not default)
+    sc.Response().Writer.Write([]byte(`<option value="all">Todos</option>`))
 
 	// Write project options
 	for _, project := range projects {
@@ -657,8 +659,10 @@ func (h *Handler) GetApplicationsOptions(sc *core.HTTPServerContext) error {
 	sc.Response().Header().Set("Content-Type", "text/html")
 	sc.Response().WriteHeader(http.StatusOK)
 
-	// Write default option
-	sc.Response().Writer.Write([]byte(`<option value="">Selecione uma aplicação</option>`))
+    // Write default option
+    sc.Response().Writer.Write([]byte(`<option value="">Selecione uma aplicação</option>`))
+    // Write "Todos" option (not default)
+    sc.Response().Writer.Write([]byte(`<option value="all">Todos</option>`))
 
 	// Write application options with project name
 	for _, app := range applications {
@@ -695,8 +699,10 @@ func (h *Handler) GetMetricTypesOptions(sc *core.HTTPServerContext) error {
 	sc.Response().Header().Set("Content-Type", "text/html")
 	sc.Response().WriteHeader(http.StatusOK)
 
-	// Write default option
-	sc.Response().Writer.Write([]byte(`<option value="">Selecione um tipo de métrica</option>`))
+    // Write default option
+    sc.Response().Writer.Write([]byte(`<option value="">Selecione um tipo de métrica</option>`))
+    // Write "Todos" option (not default)
+    sc.Response().Writer.Write([]byte(`<option value="all">Todos</option>`))
 
 	// Write metric type options
 	for _, metricType := range metricTypes {
@@ -1329,6 +1335,7 @@ func (h *Handler) RenderAuthError(sc *core.HTTPServerContext) error {
 		"user_info_failed":   "Failed to retrieve user information. Please try again.",
 		"email_not_verified": "Your email address is not verified with Google.",
 		"domain_not_allowed": "Your email domain is not authorized to access this application.",
+		"email_not_allowed":  "Your email address is not authorized to access this application.",
 		"session_failed":     "Failed to create session. Please try again.",
 		"unauthorized":       "You are not authorized to access this application.",
 	}
@@ -1404,11 +1411,11 @@ func (h *Handler) GetProjects(sc *core.HTTPServerContext) error {
 }
 
 type ApplicationMetricsView struct {
-	ApplicationID          string
-	ApplicationName        string
-	ApplicationDescription string
-	ApplicationNamespace   string
-	MetricsByType          map[string]*MetricWithValue
+    ApplicationID          string
+    ApplicationName        string
+    ApplicationDescription string
+    ApplicationNamespace   string
+    MetricsByType          map[string]*MetricWithValue
 }
 
 type MetricWithValue struct {
@@ -1526,6 +1533,135 @@ func (h *Handler) GetApplicationMetrics(sc *core.HTTPServerContext) error {
 	}
 
 	return nil
+}
+
+// GetDashboardResults renders dashboard results when any filter is applied
+func (h *Handler) GetDashboardResults(sc *core.HTTPServerContext) error {
+    ctx := sc.Request().Context()
+
+    rawProjectID := sc.QueryParam("project_id")
+    rawApplicationID := sc.QueryParam("application_id")
+    rawMetricTypeID := sc.QueryParam("metric_type_id")
+
+    // Detect if user interacted with any filter (including selecting "Todos")
+    hasAnySelection := rawProjectID != "" || rawApplicationID != "" || rawMetricTypeID != ""
+
+    // Normalize 'Todos' selection to empty filter
+    projectID := rawProjectID
+    applicationID := rawApplicationID
+    metricTypeID := rawMetricTypeID
+    if projectID == "all" {
+        projectID = ""
+    }
+    if applicationID == "all" {
+        applicationID = ""
+    }
+    if metricTypeID == "all" {
+        metricTypeID = ""
+    }
+
+    sc.Response().Header().Set("Content-Type", "text/html")
+    sc.Response().WriteHeader(http.StatusOK)
+
+    // If no filters selected at all, show helper message and return
+    if !hasAnySelection {
+        sc.Response().Writer.Write([]byte(`<div class="info-box">Selecione um projeto, uma aplicação ou um tipo de métrica para carregar o dashboard.</div>`))
+        return nil
+    }
+
+    // Determine which applications to render
+    var applications []applicationModel.Application
+
+    if applicationID != "" {
+        app, err := serverModel.ServerRepos.Application.Get(ctx, applicationID)
+        if err != nil {
+            return sc.String(http.StatusBadRequest, "Aplicação selecionada inválida")
+        }
+        if projectID != "" && app.ProjectID != projectID {
+            return sc.String(http.StatusBadRequest, "Aplicação não pertence ao projeto selecionado")
+        }
+        applications = []applicationModel.Application{app}
+    } else if projectID != "" {
+        var err error
+        applications, err = serverModel.ServerRepos.Application.ListByProject(ctx, projectID)
+        if err != nil {
+            return sc.String(http.StatusInternalServerError, "Erro ao carregar aplicações do projeto")
+        }
+    } else {
+        // Only metric type selected: render across all applications
+        var err error
+        applications, err = serverModel.ServerRepos.Application.List(ctx)
+        if err != nil {
+            return sc.String(http.StatusInternalServerError, "Erro ao carregar aplicações")
+        }
+    }
+
+    // For each application, collect metrics (optionally filtered by metric type) and render
+    for _, application := range applications {
+        applicationMetrics, err := serverModel.ServerRepos.ApplicationMetric.ListByApplication(ctx, application.ID)
+        if err != nil {
+            continue
+        }
+
+        metricsByType := make(map[string]*MetricWithValue)
+
+        for _, metric := range applicationMetrics {
+            if metricTypeID != "" && metric.TypeID != metricTypeID {
+                continue
+            }
+
+            metricType, err := serverModel.ServerRepos.MetricType.Get(ctx, metric.TypeID)
+            if err != nil {
+                continue
+            }
+
+            mv := &MetricWithValue{
+                MetricID:     metric.ID,
+                MetricTypeID: metric.TypeID,
+            }
+
+            var config map[string]interface{}
+            redacted := security.RedactSensitiveFieldsRaw(metric.Configuration)
+            if err = json.Unmarshal(redacted, &config); err == nil {
+                mv.Configuration = config
+            }
+
+            values, err := serverModel.ServerRepos.ApplicationMetricValue.ListByApplicationMetric(ctx, metric.ID, 1)
+            if err == nil && len(values) > 0 {
+                var valueMap map[string]interface{}
+                if err := json.Unmarshal(values[0].Value, &valueMap); err == nil {
+                    mv.LatestValue = &MetricValueParsed{
+                        ID:                  values[0].ID,
+                        ApplicationMetricID: values[0].ApplicationMetricID,
+                        Value:               valueMap,
+                        CreatedAt:           values[0].CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
+                        UpdatedAt:           values[0].UpdatedAt.Format("2006-01-02T15:04:05Z07:00"),
+                    }
+                }
+            }
+
+            metricsByType[metricType.Name] = mv
+        }
+
+        // If filtering by metric type and no metric matched for this app, skip rendering this app
+        if metricTypeID != "" && len(metricsByType) == 0 {
+            continue
+        }
+
+        data := ApplicationMetricsView{
+            ApplicationID:          application.ID,
+            ApplicationName:        application.Name,
+            ApplicationDescription: application.Description,
+            ApplicationNamespace:   application.Namespace,
+            MetricsByType:          metricsByType,
+        }
+
+        if err := h.templates.ExecuteTemplate(sc.Response().Writer, "application-metrics", data); err != nil {
+            return err
+        }
+    }
+
+    return nil
 }
 
 // Helper function to get metric value by type

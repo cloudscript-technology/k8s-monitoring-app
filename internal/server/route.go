@@ -56,6 +56,7 @@ func bindRoutes(s *core.HTTPServer) {
 		apiUI.GET("/projects-options", s.WrapHandler(webHandler.GetProjectsOptions))
 		apiUI.GET("/applications-options", s.WrapHandler(webHandler.GetApplicationsOptions))
 		apiUI.GET("/metric-types-options", s.WrapHandler(webHandler.GetMetricTypesOptions))
+		apiUI.GET("/dashboard-results", s.WrapHandler(webHandler.GetDashboardResults))
 		apiUI.GET("/metric-configuration-fields/:id", s.WrapHandler(webHandler.GetMetricConfigurationFields))
 		// YAML Import processing endpoint
 		apiUI.POST("/import-yaml", s.WrapHandler(webHandler.ImportYAML))

@@ -32,6 +32,7 @@ type GoogleUserInfo struct {
 type OAuthConfig struct {
 	Config         *oauth2.Config
 	AllowedDomains []string
+	AllowedEmails  []string
 }
 
 var OAuth *OAuthConfig
@@ -54,11 +55,13 @@ func InitOAuth() error {
 			Endpoint: google.Endpoint,
 		},
 		AllowedDomains: parseAllowedDomains(env.ALLOWED_GOOGLE_DOMAINS),
+		AllowedEmails:  parseAllowedEmails(env.ALLOWED_GOOGLE_EMAILS),
 	}
 
 	log.Info().
 		Str("redirect_url", env.GOOGLE_REDIRECT_URL).
 		Strs("allowed_domains", OAuth.AllowedDomains).
+		Strs("allowed_emails", OAuth.AllowedEmails).
 		Msg("OAuth initialized successfully")
 
 	return nil
@@ -74,6 +77,23 @@ func parseAllowedDomains(domains string) []string {
 	result := make([]string, 0, len(parts))
 	for _, domain := range parts {
 		trimmed := strings.TrimSpace(domain)
+		if trimmed != "" {
+			result = append(result, trimmed)
+		}
+	}
+	return result
+}
+
+// parseAllowedEmails parses comma-separated emails
+func parseAllowedEmails(emails string) []string {
+	if emails == "" {
+		return []string{}
+	}
+
+	parts := strings.Split(emails, ",")
+	result := make([]string, 0, len(parts))
+	for _, email := range parts {
+		trimmed := strings.TrimSpace(email)
 		if trimmed != "" {
 			result = append(result, trimmed)
 		}
@@ -122,8 +142,8 @@ func (o *OAuthConfig) GetUserInfo(ctx context.Context, token *oauth2.Token) (*Go
 	return &userInfo, nil
 }
 
-// IsEmailAllowed checks if the email domain is in the allowed list
-func (o *OAuthConfig) IsEmailAllowed(email string) bool {
+// IsDomainAllowed checks if the email domain is in the allowed list
+func (o *OAuthConfig) IsDomainAllowed(email string) bool {
 	// If no domains configured, allow all (for backward compatibility)
 	if len(o.AllowedDomains) == 0 {
 		return true
@@ -136,11 +156,29 @@ func (o *OAuthConfig) IsEmailAllowed(email string) bool {
 
 	domain := strings.ToLower(parts[1])
 	for _, allowedDomain := range o.AllowedDomains {
-		if strings.ToLower(allowedDomain) == domain {
+		if strings.TrimSpace(strings.ToLower(allowedDomain)) == strings.TrimSpace(strings.ToLower(domain)) {
 			return true
 		}
 	}
 
+	log.Warn().Str("email", email).Strs("allowed_domains", o.AllowedDomains).Msg("Email domain not in allowed list")
+	return false
+}
+
+// IsAddressAllowed checks if the full email address is in the allowed list
+func (o *OAuthConfig) IsAddressAllowed(email string) bool {
+	// If no emails configured, allow all (domain rule will still apply separately)
+	if len(o.AllowedEmails) == 0 {
+		return true
+	}
+
+	for _, allowed := range o.AllowedEmails {
+		if strings.EqualFold(strings.TrimSpace(allowed), strings.TrimSpace(email)) {
+			return true
+		}
+	}
+
+	log.Warn().Str("email", email).Strs("allowed_emails", o.AllowedEmails).Msg("Email address not in allowed list")
 	return false
 }
 
@@ -227,13 +265,21 @@ func HandleCallback(c echo.Context) error {
 		return c.Redirect(http.StatusTemporaryRedirect, "/auth/error?reason=email_not_verified")
 	}
 
-	// Check if email domain is allowed
-	if !OAuth.IsEmailAllowed(userInfo.Email) {
+	// Check if email domain is allowed (if configured)
+	if !OAuth.IsDomainAllowed(userInfo.Email) {
 		log.Warn().
 			Str("email", userInfo.Email).
 			Str("domain", userInfo.HD).
 			Msg("Domain not allowed")
 		return c.Redirect(http.StatusTemporaryRedirect, "/auth/error?reason=domain_not_allowed")
+	}
+
+	// Check if specific email address is allowed (if configured)
+	if !OAuth.IsAddressAllowed(userInfo.Email) {
+		log.Warn().
+			Str("email", userInfo.Email).
+			Msg("Email not allowed")
+		return c.Redirect(http.StatusTemporaryRedirect, "/auth/error?reason=email_not_allowed")
 	}
 
 	// Create session
@@ -298,6 +344,7 @@ func HandleAuthError(c echo.Context) error {
 		"user_info_failed":   "Failed to retrieve user information. Please try again.",
 		"email_not_verified": "Your email address is not verified with Google.",
 		"domain_not_allowed": "Your email domain is not authorized to access this application.",
+		"email_not_allowed":  "Your email address is not authorized to access this application.",
 		"session_failed":     "Failed to create session. Please try again.",
 		"unauthorized":       "You are not authorized to access this application.",
 	}

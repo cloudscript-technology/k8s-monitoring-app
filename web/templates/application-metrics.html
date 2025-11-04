@@ -242,15 +242,20 @@
                 {{ $percent := index $memoryMetric.LatestValue.Value "memory_percent" }}
                 {{ $usageMB := div $usage 1048576.0 }}
                 {{ $limitMB := div $limit 1048576.0 }}
+                {{ $limitZero := eq (add $limit 0.0) 0.0 }}
 
-                <div class="resource-bar-container" title="Memory: {{ printf " %.0f" $usageMB }}MB / {{ printf "%.0f"
-                    $limitMB }}MB">
+                <div class="resource-bar-container" title="{{ if $limitZero }}Memory: {{ printf " %.0f" $usageMB }}MB /
+                    No limit defined{{ else }}Memory: {{ printf " %.0f" $usageMB }}MB / {{ printf "%.0f" $limitMB }}MB{{
+                    end }}">
                     <div class="resource-bar">
-                        <div class="resource-bar-fill" style="width: {{ $percent }}%"></div>
+                        <div class="resource-bar-fill" style="width: {{ if $limitZero }}0{{ else }}{{ printf " %.0f"
+                            (add $percent 0.0) }}{{ end }}%"></div>
                     </div>
-                    <div class="resource-value">{{ printf "%.0f" $percent }}%</div>
+                    <div class="resource-value">{{ if $limitZero }}N/A{{ else }}{{ printf "%.0f" (add $percent 0.0)
+                        }}%{{ end }}</div>
                 </div>
-                <div class="metric-detail">{{ printf "%.0f" $usageMB }} / {{ printf "%.0f" $limitMB }} MB</div>
+                <div class="metric-detail">{{ if $limitZero }}{{ printf "%.0f" $usageMB }} / — (no limit defined){{ else
+                    }}{{ printf "%.0f" $usageMB }} / {{ printf "%.0f" $limitMB }} MB{{ end }}</div>
             </div>
         </div>
         {{ end }}
@@ -267,14 +272,21 @@
                 {{ $usage := index $cpuMetric.LatestValue.Value "cpu_usage_millicores" }}
                 {{ $limit := index $cpuMetric.LatestValue.Value "cpu_limit_millicores" }}
                 {{ $percent := index $cpuMetric.LatestValue.Value "cpu_percent" }}
+                {{ $limitZero := eq (add $limit 0.0) 0.0 }}
 
-                <div class="resource-bar-container" title="CPU: {{ $usage }}m / {{ $limit }}m">
+                <div class="resource-bar-container" title="{{ if $limitZero }}CPU: {{ printf " %.0f" (add $usage 0) }}m
+                    / No limit defined{{ else }}CPU: {{ printf "%.0f" (add $usage 0) }}m / {{ printf "%.0f" (add $limit
+                    0) }}m{{ end }}">
                     <div class="resource-bar">
-                        <div class="resource-bar-fill" style="width: {{ $percent }}%"></div>
+                        <div class="resource-bar-fill" style="width: {{ if $limitZero }}0{{ else }}{{ printf " %.0f"
+                            (add $percent 0.0) }}{{ end }}%"></div>
                     </div>
-                    <div class="resource-value">{{ printf "%.1f" $percent }}%</div>
+                    <div class="resource-value">{{ if $limitZero }}N/A{{ else }}{{ printf "%.1f" (add $percent 0.0)
+                        }}%{{ end }}</div>
                 </div>
-                <div class="metric-detail">{{ $usage }} / {{ $limit }} m</div>
+                <div class="metric-detail">{{ if $limitZero }}{{ printf "%.0f" (add $usage 0) }} / — (no limit
+                    defined){{ else
+                    }}{{ printf "%.0f" (add $usage 0) }} / {{ printf "%.0f" (add $limit 0) }} m{{ end }}</div>
             </div>
         </div>
         {{ end }}
@@ -297,9 +309,9 @@
                 <div class="resource-bar-container" title="Disk: {{ printf " %.1f" $usedGB }}GB / {{ printf "%.1f"
                     $capacityGB }}GB">
                     <div class="resource-bar">
-                        <div class="resource-bar-fill" style="width: {{ $percent }}%"></div>
+                        <div class="resource-bar-fill" style="width: {{ printf " %.0f" (add $percent 0) }}%"></div>
                     </div>
-                    <div class="resource-value">{{ printf "%.0f" $percent }}%</div>
+                    <div class="resource-value">{{ printf "%.0f" (add $percent 0) }}%</div>
                 </div>
                 <div class="metric-detail">{{ printf "%.1f" $usedGB }} / {{ printf "%.1f" $capacityGB }} GB</div>
             </div>

@@ -7,7 +7,7 @@ import (
 	"net/http"
 
 	"k8s-monitoring-app/internal/core"
-    "k8s-monitoring-app/internal/security"
+	"k8s-monitoring-app/internal/security"
 	serverModel "k8s-monitoring-app/internal/server/model"
 	model "k8s-monitoring-app/pkg/application_metric/model"
 
@@ -36,9 +36,9 @@ func (s *service) Get(sc *core.HTTPServerContext) error {
 		return sc.String(http.StatusNotFound, "application metric not found")
 	}
 
-    // Redact sensitive configuration fields before returning
-    applicationMetric.Configuration = security.RedactSensitiveFieldsRaw(applicationMetric.Configuration)
-    return sc.JSON(http.StatusOK, applicationMetric)
+	// Redact sensitive configuration fields before returning
+	applicationMetric.Configuration = security.RedactSensitiveFieldsRaw(applicationMetric.Configuration)
+	return sc.JSON(http.StatusOK, applicationMetric)
 }
 
 func (s *service) List(sc *core.HTTPServerContext) error {
@@ -50,11 +50,11 @@ func (s *service) List(sc *core.HTTPServerContext) error {
 		return sc.String(http.StatusInternalServerError, "internal server error")
 	}
 
-    // Redact sensitive configuration fields in each item before returning
-    for i := range applicationMetrics {
-        applicationMetrics[i].Configuration = security.RedactSensitiveFieldsRaw(applicationMetrics[i].Configuration)
-    }
-    return sc.JSON(http.StatusOK, applicationMetrics)
+	// Redact sensitive configuration fields in each item before returning
+	for i := range applicationMetrics {
+		applicationMetrics[i].Configuration = security.RedactSensitiveFieldsRaw(applicationMetrics[i].Configuration)
+	}
+	return sc.JSON(http.StatusOK, applicationMetrics)
 }
 
 func (s *service) ListByApplication(sc *core.HTTPServerContext) error {
@@ -73,11 +73,11 @@ func (s *service) ListByApplication(sc *core.HTTPServerContext) error {
 		return sc.String(http.StatusInternalServerError, "internal server error")
 	}
 
-    // Redact sensitive configuration fields before returning
-    for i := range applicationMetrics {
-        applicationMetrics[i].Configuration = security.RedactSensitiveFieldsRaw(applicationMetrics[i].Configuration)
-    }
-    return sc.JSON(http.StatusOK, applicationMetrics)
+	// Redact sensitive configuration fields before returning
+	for i := range applicationMetrics {
+		applicationMetrics[i].Configuration = security.RedactSensitiveFieldsRaw(applicationMetrics[i].Configuration)
+	}
+	return sc.JSON(http.StatusOK, applicationMetrics)
 }
 
 func (s *service) Add(sc *core.HTTPServerContext) error {
@@ -110,19 +110,21 @@ func (s *service) Add(sc *core.HTTPServerContext) error {
 		return sc.String(http.StatusInternalServerError, "internal server error")
 	}
 
-	for _, existing := range existingMetrics {
-		if existing.TypeID == applicationMetric.TypeID {
-			log.Warn().
-				Str("application_id", applicationMetric.ApplicationID).
-				Str("metric_type", metricType.Name).
-				Str("existing_metric_id", existing.ID).
-				Msg("metric of this type already exists for this application")
-			return sc.JSON(http.StatusConflict, map[string]interface{}{
-				"error":              "metric already exists",
-				"message":            "A metric of type '" + metricType.Name + "' already exists for this application",
-				"existing_metric_id": existing.ID,
-				"metric_type":        metricType.Name,
-			})
+	if metricType.Name != "PvcUsage" {
+		for _, existing := range existingMetrics {
+			if existing.TypeID == applicationMetric.TypeID {
+				log.Warn().
+					Str("application_id", applicationMetric.ApplicationID).
+					Str("metric_type", metricType.Name).
+					Str("existing_metric_id", existing.ID).
+					Msg("metric of this type already exists for this application")
+				return sc.JSON(http.StatusConflict, map[string]interface{}{
+					"error":              "metric already exists",
+					"message":            "A metric of type '" + metricType.Name + "' already exists for this application",
+					"existing_metric_id": existing.ID,
+					"metric_type":        metricType.Name,
+				})
+			}
 		}
 	}
 
@@ -157,9 +159,9 @@ func (s *service) Add(sc *core.HTTPServerContext) error {
 		return sc.String(http.StatusInternalServerError, "internal server error")
 	}
 
-    // Redact sensitive configuration fields before returning
-    applicationMetric.Configuration = security.RedactSensitiveFieldsRaw(applicationMetric.Configuration)
-    return sc.JSON(http.StatusCreated, applicationMetric)
+	// Redact sensitive configuration fields before returning
+	applicationMetric.Configuration = security.RedactSensitiveFieldsRaw(applicationMetric.Configuration)
+	return sc.JSON(http.StatusCreated, applicationMetric)
 }
 
 func (s *service) Update(sc *core.HTTPServerContext) error {
@@ -189,7 +191,7 @@ func (s *service) Update(sc *core.HTTPServerContext) error {
 		}
 
 		// If the type is being changed, check if another metric of the new type already exists
-		if applicationMetric.TypeID != existingMetric.TypeID {
+		if applicationMetric.TypeID != existingMetric.TypeID && metricType.Name != "PvcUsage" {
 			existingMetrics, err3 := serverModel.ServerRepos.ApplicationMetric.ListByApplication(ctx, existingMetric.ApplicationID)
 			if err3 != nil {
 				log.Error().Msgf("error listing application metrics: %s", err3.Error())
@@ -265,9 +267,9 @@ func (s *service) Update(sc *core.HTTPServerContext) error {
 		return sc.String(http.StatusInternalServerError, "Internal Server Error")
 	}
 
-    // Redact sensitive configuration fields before returning
-    applicationMetric.Configuration = security.RedactSensitiveFieldsRaw(applicationMetric.Configuration)
-    return sc.JSON(http.StatusOK, applicationMetric)
+	// Redact sensitive configuration fields before returning
+	applicationMetric.Configuration = security.RedactSensitiveFieldsRaw(applicationMetric.Configuration)
+	return sc.JSON(http.StatusOK, applicationMetric)
 }
 
 func (s *service) Delete(sc *core.HTTPServerContext) error {
@@ -357,25 +359,25 @@ func validateConfigByType(metricTypeName string, cfg model.Configuration) error 
 			return fmt.Errorf("connection_timeout must be a positive integer for %s", metricTypeName)
 		}
 	case "KongConnection":
- 		// Either explicit admin URL or host+port
- 		if cfg.KongAdminURL == "" {
- 			if cfg.ConnectionHost == "" || cfg.ConnectionPort <= 0 {
- 				return fmt.Errorf("kong_admin_url or connection_host+connection_port are required for %s", metricTypeName)
- 			}
- 		}
- 		if cfg.ConnectionTimeout <= 0 {
- 			return fmt.Errorf("connection_timeout must be a positive integer for %s", metricTypeName)
- 		}
+		// Either explicit admin URL or host+port
+		if cfg.KongAdminURL == "" {
+			if cfg.ConnectionHost == "" || cfg.ConnectionPort <= 0 {
+				return fmt.Errorf("kong_admin_url or connection_host+connection_port are required for %s", metricTypeName)
+			}
+		}
+		if cfg.ConnectionTimeout <= 0 {
+			return fmt.Errorf("connection_timeout must be a positive integer for %s", metricTypeName)
+		}
 	default:
- 		// Non-connection metric types: no additional checks here
- 		return nil
- 	}
- 	return nil
+		// Non-connection metric types: no additional checks here
+		return nil
+	}
+	return nil
 }
 
 // ValidateConfigByType is an exported wrapper to allow other internal packages
 // (e.g., web handlers) to validate configuration consistently with service logic.
 // It delegates to the internal validateConfigByType implementation.
 func ValidateConfigByType(metricTypeName string, cfg model.Configuration) error {
-    return validateConfigByType(metricTypeName, cfg)
+	return validateConfigByType(metricTypeName, cfg)
 }

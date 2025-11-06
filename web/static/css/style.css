@@ -395,6 +395,8 @@ body {
     display: flex;
     flex-wrap: wrap;
     justify-content: flex-start;
+    /* Prevent cards in the same row from stretching to tallest height */
+    align-items: flex-start;
     gap: 0.75rem;
 }
 
@@ -530,7 +532,7 @@ body {
     gap: 0.375rem;
     padding: 0.4rem 0.625rem;
     border-radius: 5px;
-    font-size: 0.8rem;
+    font-size: 0.75rem;
     font-weight: 600;
     cursor: help;
 }
@@ -566,7 +568,7 @@ body {
 
 .status-text {
     flex: 1;
-    font-size: 0.75rem;
+    font-size: 0.7rem;
 }
 
 .status-time {
@@ -615,6 +617,63 @@ body {
     word-break: break-word;
     overflow-wrap: anywhere;
     line-height: 1.2;
+}
+
+/* Kafka card specific tweaks: increase max width and compact fonts */
+.metric-card.kafka-card {
+    /* Make Kafka card occupy a full isolated row */
+    flex: 1 0 100%;
+    width: 100%;
+    max-width: none;
+}
+
+.kafka-card .metric-card-content {
+    font-size: 0.75rem;
+}
+
+/* Kafka columns layout: show multiple small tables side by side */
+.kafka-columns {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.kafka-table {
+    flex: 1 1 300px;
+    max-width: 380px;
+}
+
+/* Table styling for Kafka group lags with wrapping */
+.metric-table-container {
+    overflow-x: auto;
+    /* Constrain height to avoid overly tall card; enable vertical scrolling */
+    max-height: 320px;
+    overflow-y: auto;
+}
+
+.metric-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.75rem;
+}
+
+.metric-table th,
+.metric-table td {
+    padding: 0.25rem 0.375rem;
+    text-align: left;
+    vertical-align: top;
+    word-break: break-word;
+    overflow-wrap: anywhere;
+}
+
+.metric-table thead th {
+    color: var(--gray-600);
+    font-weight: 700;
+    border-bottom: 1px solid var(--gray-200);
+}
+
+.metric-table tbody tr + tr {
+    border-top: 1px dashed var(--gray-200);
 }
 
 .metric-no-data {

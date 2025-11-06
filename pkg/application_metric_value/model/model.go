@@ -62,9 +62,10 @@ type MetricValue struct {
 
 	// For KafkaConsumerLag
 	KafkaLagStatus     string          `json:"kafka_lag_status,omitempty"`     // "ok", "warning", "critical", "error"
-	KafkaTotalLag      int64           `json:"kafka_total_lag,omitempty"`      // Total lag across all partitions
+	KafkaTotalLag      int64           `json:"kafka_total_lag"`                // Total lag across all partitions
 	KafkaConsumerGroup string          `json:"kafka_consumer_group,omitempty"` // Consumer group name
 	KafkaTopicLags     []KafkaTopicLag `json:"kafka_topic_lags,omitempty"`     // Lag per topic
+	KafkaGroupLags     []KafkaGroupLag `json:"kafka_group_lags,omitempty"`     // Lag per consumer group (when listing all)
 	KafkaError         string          `json:"kafka_error,omitempty"`          // Error message if any
 }
 
@@ -81,6 +82,13 @@ type KafkaPartitionLag struct {
 	CurrentOffset int64 `json:"current_offset"` // Current consumer offset
 	LogEndOffset  int64 `json:"log_end_offset"` // Log end offset (high water mark)
 	Lag           int64 `json:"lag"`            // Difference between log end and current offset
+}
+
+// KafkaGroupLag represents lag aggregated for a consumer group
+type KafkaGroupLag struct {
+	Group     string          `json:"group"`                // Consumer group name
+	TotalLag  int64           `json:"total_lag"`            // Total lag across topics for this group
+	TopicLags []KafkaTopicLag `json:"topic_lags,omitempty"` // Lag per topic for this group
 }
 
 // NodeInfo contains detailed information about a node

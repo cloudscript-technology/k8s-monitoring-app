@@ -331,22 +331,23 @@
                 {{ $status := index $kafkaMetric.LatestValue.Value "kafka_lag_status" }}
                 {{ $totalLag := index $kafkaMetric.LatestValue.Value "kafka_total_lag" }}
                 {{ $consumerGroup := index $kafkaMetric.LatestValue.Value "kafka_consumer_group" }}
+                {{ $groupLags := index $kafkaMetric.LatestValue.Value "kafka_group_lags" }}
                 {{ $error := index $kafkaMetric.LatestValue.Value "kafka_error" }}
 
                 {{ if eq $status "ok" }}
                 <div class="status-badge status-ok" title="Consumer group: {{ $consumerGroup }}">
                     <span class="status-icon">✓</span>
-                    <span class="status-text">{{ $totalLag }} msgs</span>
+                    <span class="status-text">{{ if $totalLag }}{{ $totalLag }}{{ else }}0{{ end }} Messages</span>
                 </div>
                 {{ else if eq $status "warning" }}
                 <div class="status-badge status-warning" title="Consumer group: {{ $consumerGroup }}">
                     <span class="status-icon">⚠</span>
-                    <span class="status-text">{{ $totalLag }} msgs</span>
+                    <span class="status-text">{{ if $totalLag }}{{ $totalLag }}{{ else }}0{{ end }} Messages</span>
                 </div>
                 {{ else if eq $status "critical" }}
                 <div class="status-badge status-error" title="Consumer group: {{ $consumerGroup }}">
                     <span class="status-icon">✗</span>
-                    <span class="status-text">{{ $totalLag }} msgs</span>
+                    <span class="status-text">{{ if $totalLag }}{{ $totalLag }}{{ else }}0{{ end }} Messages</span>
                 </div>
                 {{ else }}
                 <div class="status-badge status-error" title="{{ $error }}">
@@ -356,6 +357,32 @@
                 {{ end }}
                 {{ if $consumerGroup }}
                 <div class="metric-detail">{{ $consumerGroup }}</div>
+                {{ end }}
+
+                {{ if $groupLags }}
+                {{ $chunks := chunk $groupLags 5 }}
+                <div class="kafka-columns">
+                    {{ range $chunks }}
+                    <div class="metric-table-container kafka-table">
+                        <table class="metric-table">
+                            <thead>
+                                <tr>
+                                    <th>Consumer Group</th>
+                                    <th>Total Lag</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {{ range . }}
+                                <tr>
+                                    <td>{{ index . "group" }}</td>
+                                    <td>{{ index . "total_lag" }}</td>
+                                </tr>
+                                {{ end }}
+                            </tbody>
+                        </table>
+                    </div>
+                    {{ end }}
+                </div>
                 {{ end }}
                 {{ else if and $kafkaMetric $kafkaMetric.Configuration }}
                 <div class="status-badge status-unknown">

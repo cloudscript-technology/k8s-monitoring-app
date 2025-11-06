@@ -17,10 +17,10 @@ import (
 
 // CollectConsumerLag collects Kafka consumer lag information
 func CollectConsumerLag(ctx context.Context, config *applicationMetricModel.Configuration) applicationMetricValueModel.MetricValue {
-	if config.KafkaBootstrapServers == "" || config.KafkaConsumerGroup == "" {
+	if config.KafkaBootstrapServers == "" {
 		return applicationMetricValueModel.MetricValue{
 			KafkaLagStatus: "error",
-			KafkaError:     "missing required configuration: kafka_bootstrap_servers and kafka_consumer_group are required",
+			KafkaError:     "missing required configuration: kafka_bootstrap_servers is required",
 		}
 	}
 
@@ -34,13 +34,18 @@ func CollectConsumerLag(ctx context.Context, config *applicationMetricModel.Conf
 		}
 	}
 
-	// Create Kafka client
+	// Create Kafka client, wiring SASL via Transport when configured
+	var transport *kafka.Transport
+	if dialer.SASLMechanism != nil {
+		transport = &kafka.Transport{SASL: dialer.SASLMechanism}
+	}
 	client := &kafka.Client{
-		Addr:    kafka.TCP(config.KafkaBootstrapServers),
-		Timeout: 10 * time.Second,
+		Addr:      kafka.TCP(config.KafkaBootstrapServers),
+		Timeout:   10 * time.Second,
+		Transport: transport,
 	}
 
-	// Get consumer group information
+	// Determine topics to monitor (specific or all)
 	var topicsToMonitor []string
 	if config.KafkaTopic != "" {
 		// Monitor specific topic
@@ -76,49 +81,86 @@ func CollectConsumerLag(ctx context.Context, config *applicationMetricModel.Conf
 		}
 	}
 
-	// Collect lag for each topic
-	var topicLags []applicationMetricValueModel.KafkaTopicLag
-	var totalLag int64
-
-	for _, topic := range topicsToMonitor {
-		topicLag, err := collectTopicLag(ctx, client, config, topic)
+	// Determine consumer groups to monitor (specific or all)
+	var groupsToMonitor []string
+	if config.KafkaConsumerGroup != "" {
+		groupsToMonitor = []string{config.KafkaConsumerGroup}
+	} else {
+		// List all consumer groups
+		listResp, err := client.ListGroups(ctx, &kafka.ListGroupsRequest{})
 		if err != nil {
-			log.Error().
-				Str("topic", topic).
-				Msg("failed to collect lag for topic")
-			continue
+			log.Error().Msg("failed to list consumer groups")
+			return applicationMetricValueModel.MetricValue{
+				KafkaLagStatus: "error",
+				KafkaError:     fmt.Sprintf("failed to list consumer groups: %v", err),
+			}
 		}
-
-		topicLags = append(topicLags, topicLag)
-		totalLag += topicLag.TotalLag
+		for _, g := range listResp.Groups {
+			if g.GroupID != "" {
+				groupsToMonitor = append(groupsToMonitor, g.GroupID)
+			}
+		}
+		if len(groupsToMonitor) == 0 {
+			return applicationMetricValueModel.MetricValue{
+				KafkaLagStatus: "error",
+				KafkaError:     "no consumer groups found",
+			}
+		}
 	}
 
-	if len(topicLags) == 0 {
+	var groupLags []applicationMetricValueModel.KafkaGroupLag
+	var overallTotalLag int64
+
+	// Collect lag per group and per topic
+	for _, group := range groupsToMonitor {
+		var topicLags []applicationMetricValueModel.KafkaTopicLag
+		var totalLag int64
+
+		for _, topic := range topicsToMonitor {
+			topicLag, err := collectTopicLag(ctx, client, config, group, topic, dialer)
+			if err != nil {
+				log.Error().Str("group", group).Str("topic", topic).Msg("failed to collect lag for topic")
+				continue
+			}
+			topicLags = append(topicLags, topicLag)
+			totalLag += topicLag.TotalLag
+		}
+
+		if totalLag > 0 || len(topicLags) > 0 {
+			groupLags = append(groupLags, applicationMetricValueModel.KafkaGroupLag{
+				Group:     group,
+				TotalLag:  totalLag,
+				TopicLags: topicLags,
+			})
+			overallTotalLag += totalLag
+		}
+	}
+
+	if len(groupLags) == 0 {
 		return applicationMetricValueModel.MetricValue{
-			KafkaLagStatus:     "error",
-			KafkaConsumerGroup: config.KafkaConsumerGroup,
-			KafkaError:         "no topics found or unable to collect lag",
+			KafkaLagStatus: "error",
+			KafkaError:     "no topics/groups found or unable to collect lag",
 		}
 	}
 
-	// Determine status based on total lag and threshold
+	// Determine overall status based on sum of lag and threshold
 	threshold := config.KafkaLagThreshold
 	if threshold == 0 {
 		threshold = 1000 // Default threshold
 	}
 
 	status := "ok"
-	if totalLag > threshold*10 {
+	if overallTotalLag > threshold*10 {
 		status = "critical"
-	} else if totalLag > threshold {
+	} else if overallTotalLag > threshold {
 		status = "warning"
 	}
 
 	return applicationMetricValueModel.MetricValue{
-		KafkaLagStatus:     status,
-		KafkaTotalLag:      totalLag,
-		KafkaConsumerGroup: config.KafkaConsumerGroup,
-		KafkaTopicLags:     topicLags,
+		KafkaLagStatus: status,
+		KafkaTotalLag:  overallTotalLag,
+		// KafkaConsumerGroup left empty when listing all groups
+		KafkaGroupLags: groupLags,
 	}
 }
 
@@ -157,9 +199,9 @@ func createDialer(config *applicationMetricModel.Configuration) (*kafka.Dialer, 
 	return dialer, nil
 }
 
-func collectTopicLag(ctx context.Context, client *kafka.Client, config *applicationMetricModel.Configuration, topic string) (applicationMetricValueModel.KafkaTopicLag, error) {
+func collectTopicLag(ctx context.Context, client *kafka.Client, config *applicationMetricModel.Configuration, group string, topic string, dialer *kafka.Dialer) (applicationMetricValueModel.KafkaTopicLag, error) {
 	// Get latest offsets (high water marks) first
-	conn, err := kafka.Dial("tcp", config.KafkaBootstrapServers)
+	conn, err := dialer.DialContext(ctx, "tcp", config.KafkaBootstrapServers)
 	if err != nil {
 		return applicationMetricValueModel.KafkaTopicLag{}, fmt.Errorf("failed to dial: %w", err)
 	}
@@ -178,7 +220,7 @@ func collectTopicLag(ctx context.Context, client *kafka.Client, config *applicat
 
 	// Get consumer group offsets
 	offsetFetchReq := &kafka.OffsetFetchRequest{
-		GroupID: config.KafkaConsumerGroup,
+		GroupID: group,
 		Topics: map[string][]int{
 			topic: partitionIDs,
 		},
@@ -210,19 +252,19 @@ func collectTopicLag(ctx context.Context, client *kafka.Client, config *applicat
 			continue
 		}
 
-		// Get log end offset using reader
-		reader := kafka.NewReader(kafka.ReaderConfig{
-			Brokers:   []string{config.KafkaBootstrapServers},
-			Topic:     topic,
-			Partition: partition.ID,
-			MaxBytes:  1, // Read minimal data, we just need stats
-		})
-
-		// Set the reader offset to get stats
-		_ = reader.SetOffset(kafka.LastOffset)
-		stats := reader.Stats()
-		logEndOffset := stats.Offset
-		reader.Close()
+		// Get log end offset using a leader connection for accuracy
+		leaderConn, err := dialer.DialLeader(ctx, "tcp", config.KafkaBootstrapServers, topic, partition.ID)
+		if err != nil {
+			// If we can't dial leader, skip this partition but log the error
+			log.Error().Str("topic", topic).Int("partition", partition.ID).Msg("failed to dial leader for partition")
+			continue
+		}
+		logEndOffset, err := leaderConn.ReadLastOffset()
+		leaderConn.Close()
+		if err != nil {
+			log.Error().Str("topic", topic).Int("partition", partition.ID).Msg("failed to read last offset for partition")
+			continue
+		}
 
 		// Calculate lag
 		lag := logEndOffset - currentOffset

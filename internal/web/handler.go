@@ -1,15 +1,16 @@
 package web
 
 import (
-	"context"
-	"database/sql"
-	"encoding/json"
-	"errors"
-	"fmt"
-	"html/template"
-	"io"
-	"net/http"
-	"strings"
+    "context"
+    "database/sql"
+    "encoding/json"
+    "errors"
+    "fmt"
+    "html/template"
+    "io"
+    "net/http"
+    "strings"
+    "reflect"
 
 	application_metric "k8s-monitoring-app/internal/application_metric"
 	"k8s-monitoring-app/internal/core"
@@ -29,33 +30,54 @@ type Handler struct {
 }
 
 func NewHandler() (*Handler, error) {
-	// Create template with custom functions
-	funcMap := template.FuncMap{
-		"div": func(a, b interface{}) float64 {
-			aFloat, _ := toFloat64(a)
-			bFloat, _ := toFloat64(b)
-			if bFloat == 0 {
-				return 0
-			}
-			return aFloat / bFloat
-		},
-		"add": func(a, b interface{}) float64 {
-			aFloat, _ := toFloat64(a)
-			bFloat, _ := toFloat64(b)
-			return aFloat + bFloat
-		},
-		"sub": func(a, b interface{}) float64 {
-			aFloat, _ := toFloat64(a)
-			bFloat, _ := toFloat64(b)
-			return aFloat - bFloat
-		},
-		"firstChar": func(s string) string {
-			if len(s) == 0 {
-				return "?"
-			}
-			return string(s[0])
-		},
-	}
+    // Create template with custom functions
+    funcMap := template.FuncMap{
+        "div": func(a, b interface{}) float64 {
+            aFloat, _ := toFloat64(a)
+            bFloat, _ := toFloat64(b)
+            if bFloat == 0 {
+                return 0
+            }
+            return aFloat / bFloat
+        },
+        "add": func(a, b interface{}) float64 {
+            aFloat, _ := toFloat64(a)
+            bFloat, _ := toFloat64(b)
+            return aFloat + bFloat
+        },
+        "sub": func(a, b interface{}) float64 {
+            aFloat, _ := toFloat64(a)
+            bFloat, _ := toFloat64(b)
+            return aFloat - bFloat
+        },
+        "firstChar": func(s string) string {
+            if len(s) == 0 {
+                return "?"
+            }
+            return string(s[0])
+        },
+        // chunk splits any slice into chunks of the given size
+        "chunk": func(slice interface{}, size int) [][]interface{} {
+            v := reflect.ValueOf(slice)
+            if v.Kind() != reflect.Slice || size <= 0 {
+                return [][]interface{}{}
+            }
+            n := v.Len()
+            chunks := make([][]interface{}, 0, (n+size-1)/size)
+            for i := 0; i < n; i += size {
+                end := i + size
+                if end > n {
+                    end = n
+                }
+                c := make([]interface{}, end-i)
+                for j := i; j < end; j++ {
+                    c[j-i] = v.Index(j).Interface()
+                }
+                chunks = append(chunks, c)
+            }
+            return chunks
+        },
+    }
 
 	templates, err := template.New("").Funcs(funcMap).ParseGlob("web/templates/*.html")
 	if err != nil {
@@ -319,23 +341,31 @@ func (h *Handler) ImportYAML(sc *core.HTTPServerContext) error {
 				results = append(results, fmt.Sprintf(`<div class="alert alert-info">Projeto "%s" criado implicitamente para aplicação "%s" (ID: %s)</div>`, template.HTMLEscapeString(projectName), template.HTMLEscapeString(name), template.HTMLEscapeString(np.ID)))
 			}
 
-			// Check if application exists within project by name
-			apps, err := serverModel.ServerRepos.Application.ListByProject(ctx, proj.ID)
-			if err == nil {
-				for _, a := range apps {
-					if strings.EqualFold(a.Name, name) {
-						// Update existing application
-						a.Description = desc
-						a.Namespace = ns
-						if err := serverModel.ServerRepos.Application.Update(ctx, &a); err != nil {
-							results = append(results, fmt.Sprintf(`<div class="alert alert-error">Erro ao atualizar aplicação "%s": %s</div>`, template.HTMLEscapeString(name), template.HTMLEscapeString(err.Error())))
-							continue
-						}
-						results = append(results, fmt.Sprintf(`<div class="alert alert-success">Aplicação "%s" atualizada em "%s" (ID: %s)</div>`, template.HTMLEscapeString(name), template.HTMLEscapeString(projectName), template.HTMLEscapeString(a.ID)))
-						continue
-					}
-				}
-			}
+            // Check if application exists within project by name
+            apps, err := serverModel.ServerRepos.Application.ListByProject(ctx, proj.ID)
+            updatedApp := false
+            if err == nil {
+                for _, a := range apps {
+                    if strings.EqualFold(a.Name, name) {
+                        // Update existing application
+                        a.Description = desc
+                        a.Namespace = ns
+                        if err := serverModel.ServerRepos.Application.Update(ctx, &a); err != nil {
+                            results = append(results, fmt.Sprintf(`<div class="alert alert-error">Erro ao atualizar aplicação "%s": %s</div>`, template.HTMLEscapeString(name), template.HTMLEscapeString(err.Error())))
+                            // If update failed, we won't create a new one; move to next document
+                            updatedApp = true
+                            break
+                        }
+                        results = append(results, fmt.Sprintf(`<div class="alert alert-success">Aplicação "%s" atualizada em "%s" (ID: %s)</div>`, template.HTMLEscapeString(name), template.HTMLEscapeString(projectName), template.HTMLEscapeString(a.ID)))
+                        updatedApp = true
+                        break
+                    }
+                }
+            }
+            if updatedApp {
+                // Already updated existing application; skip creation
+                continue
+            }
 
 			// Create new application
 			a := applicationModel.Application{ProjectID: proj.ID, Name: name, Description: desc, Namespace: ns}
@@ -415,22 +445,30 @@ func (h *Handler) ImportYAML(sc *core.HTTPServerContext) error {
 				continue
 			}
 
-			// Check if metric type already exists for application
-			existingMetrics, err := serverModel.ServerRepos.ApplicationMetric.ListByApplication(ctx, app.ID)
-			if err == nil {
-				for _, em := range existingMetrics {
-					if em.TypeID == mt.ID {
-						// Update existing metric
-						em.Configuration = json.RawMessage(cfgJSON)
-						if err := serverModel.ServerRepos.ApplicationMetric.Update(ctx, &em); err != nil {
-							results = append(results, fmt.Sprintf(`<div class="alert alert-error">Erro ao atualizar métrica "%s": %s</div>`, template.HTMLEscapeString(mt.Name), template.HTMLEscapeString(err.Error())))
-							continue
-						}
-						results = append(results, fmt.Sprintf(`<div class="alert alert-success">Métrica "%s" atualizada para aplicação "%s" (ID: %s)</div>`, template.HTMLEscapeString(mt.Name), template.HTMLEscapeString(app.Name), template.HTMLEscapeString(em.ID)))
-						continue
-					}
-				}
-			}
+            // Check if metric type already exists for application
+            existingMetrics, err := serverModel.ServerRepos.ApplicationMetric.ListByApplication(ctx, app.ID)
+            updatedMetric := false
+            if err == nil {
+                for _, em := range existingMetrics {
+                    if em.TypeID == mt.ID {
+                        // Update existing metric
+                        em.Configuration = json.RawMessage(cfgJSON)
+                        if err := serverModel.ServerRepos.ApplicationMetric.Update(ctx, &em); err != nil {
+                            results = append(results, fmt.Sprintf(`<div class="alert alert-error">Erro ao atualizar métrica "%s": %s</div>`, template.HTMLEscapeString(mt.Name), template.HTMLEscapeString(err.Error())))
+                            // Consider it handled; skip creating new to avoid duplication
+                            updatedMetric = true
+                            break
+                        }
+                        results = append(results, fmt.Sprintf(`<div class="alert alert-success">Métrica "%s" atualizada para aplicação "%s" (ID: %s)</div>`, template.HTMLEscapeString(mt.Name), template.HTMLEscapeString(app.Name), template.HTMLEscapeString(em.ID)))
+                        updatedMetric = true
+                        break
+                    }
+                }
+            }
+            if updatedMetric {
+                // Already updated existing metric; skip creation
+                continue
+            }
 
 			// Create new metric
 			am := applicationMetricModel.ApplicationMetric{
@@ -1046,8 +1084,8 @@ func (h *Handler) generateConfigurationFields(metricTypeName string) string {
 					   placeholder="kafka:9092">
 			</div>
 			<div class="form-group">
-				<label for="kafka_consumer_group">Grupo de Consumidores:</label>
-				<input type="text" id="kafka_consumer_group" name="kafka_consumer_group" required 
+				<label for="kafka_consumer_group">Grupo de Consumidores (opcional):</label>
+				<input type="text" id="kafka_consumer_group" name="kafka_consumer_group"
 					   placeholder="meu-grupo-consumidor">
 			</div>
 			<div class="form-group">

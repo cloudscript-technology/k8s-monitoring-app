@@ -1,16 +1,16 @@
 package web
 
 import (
-    "context"
-    "database/sql"
-    "encoding/json"
-    "errors"
-    "fmt"
-    "html/template"
-    "io"
-    "net/http"
-    "strings"
-    "reflect"
+	"context"
+	"database/sql"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"html/template"
+	"io"
+	"net/http"
+	"reflect"
+	"strings"
 
 	application_metric "k8s-monitoring-app/internal/application_metric"
 	"k8s-monitoring-app/internal/core"
@@ -30,54 +30,54 @@ type Handler struct {
 }
 
 func NewHandler() (*Handler, error) {
-    // Create template with custom functions
-    funcMap := template.FuncMap{
-        "div": func(a, b interface{}) float64 {
-            aFloat, _ := toFloat64(a)
-            bFloat, _ := toFloat64(b)
-            if bFloat == 0 {
-                return 0
-            }
-            return aFloat / bFloat
-        },
-        "add": func(a, b interface{}) float64 {
-            aFloat, _ := toFloat64(a)
-            bFloat, _ := toFloat64(b)
-            return aFloat + bFloat
-        },
-        "sub": func(a, b interface{}) float64 {
-            aFloat, _ := toFloat64(a)
-            bFloat, _ := toFloat64(b)
-            return aFloat - bFloat
-        },
-        "firstChar": func(s string) string {
-            if len(s) == 0 {
-                return "?"
-            }
-            return string(s[0])
-        },
-        // chunk splits any slice into chunks of the given size
-        "chunk": func(slice interface{}, size int) [][]interface{} {
-            v := reflect.ValueOf(slice)
-            if v.Kind() != reflect.Slice || size <= 0 {
-                return [][]interface{}{}
-            }
-            n := v.Len()
-            chunks := make([][]interface{}, 0, (n+size-1)/size)
-            for i := 0; i < n; i += size {
-                end := i + size
-                if end > n {
-                    end = n
-                }
-                c := make([]interface{}, end-i)
-                for j := i; j < end; j++ {
-                    c[j-i] = v.Index(j).Interface()
-                }
-                chunks = append(chunks, c)
-            }
-            return chunks
-        },
-    }
+	// Create template with custom functions
+	funcMap := template.FuncMap{
+		"div": func(a, b interface{}) float64 {
+			aFloat, _ := toFloat64(a)
+			bFloat, _ := toFloat64(b)
+			if bFloat == 0 {
+				return 0
+			}
+			return aFloat / bFloat
+		},
+		"add": func(a, b interface{}) float64 {
+			aFloat, _ := toFloat64(a)
+			bFloat, _ := toFloat64(b)
+			return aFloat + bFloat
+		},
+		"sub": func(a, b interface{}) float64 {
+			aFloat, _ := toFloat64(a)
+			bFloat, _ := toFloat64(b)
+			return aFloat - bFloat
+		},
+		"firstChar": func(s string) string {
+			if len(s) == 0 {
+				return "?"
+			}
+			return string(s[0])
+		},
+		// chunk splits any slice into chunks of the given size
+		"chunk": func(slice interface{}, size int) [][]interface{} {
+			v := reflect.ValueOf(slice)
+			if v.Kind() != reflect.Slice || size <= 0 {
+				return [][]interface{}{}
+			}
+			n := v.Len()
+			chunks := make([][]interface{}, 0, (n+size-1)/size)
+			for i := 0; i < n; i += size {
+				end := i + size
+				if end > n {
+					end = n
+				}
+				c := make([]interface{}, end-i)
+				for j := i; j < end; j++ {
+					c[j-i] = v.Index(j).Interface()
+				}
+				chunks = append(chunks, c)
+			}
+			return chunks
+		},
+	}
 
 	templates, err := template.New("").Funcs(funcMap).ParseGlob("web/templates/*.html")
 	if err != nil {
@@ -341,31 +341,31 @@ func (h *Handler) ImportYAML(sc *core.HTTPServerContext) error {
 				results = append(results, fmt.Sprintf(`<div class="alert alert-info">Projeto "%s" criado implicitamente para aplicação "%s" (ID: %s)</div>`, template.HTMLEscapeString(projectName), template.HTMLEscapeString(name), template.HTMLEscapeString(np.ID)))
 			}
 
-            // Check if application exists within project by name
-            apps, err := serverModel.ServerRepos.Application.ListByProject(ctx, proj.ID)
-            updatedApp := false
-            if err == nil {
-                for _, a := range apps {
-                    if strings.EqualFold(a.Name, name) {
-                        // Update existing application
-                        a.Description = desc
-                        a.Namespace = ns
-                        if err := serverModel.ServerRepos.Application.Update(ctx, &a); err != nil {
-                            results = append(results, fmt.Sprintf(`<div class="alert alert-error">Erro ao atualizar aplicação "%s": %s</div>`, template.HTMLEscapeString(name), template.HTMLEscapeString(err.Error())))
-                            // If update failed, we won't create a new one; move to next document
-                            updatedApp = true
-                            break
-                        }
-                        results = append(results, fmt.Sprintf(`<div class="alert alert-success">Aplicação "%s" atualizada em "%s" (ID: %s)</div>`, template.HTMLEscapeString(name), template.HTMLEscapeString(projectName), template.HTMLEscapeString(a.ID)))
-                        updatedApp = true
-                        break
-                    }
-                }
-            }
-            if updatedApp {
-                // Already updated existing application; skip creation
-                continue
-            }
+			// Check if application exists within project by name
+			apps, err := serverModel.ServerRepos.Application.ListByProject(ctx, proj.ID)
+			updatedApp := false
+			if err == nil {
+				for _, a := range apps {
+					if strings.EqualFold(a.Name, name) {
+						// Update existing application
+						a.Description = desc
+						a.Namespace = ns
+						if err := serverModel.ServerRepos.Application.Update(ctx, &a); err != nil {
+							results = append(results, fmt.Sprintf(`<div class="alert alert-error">Erro ao atualizar aplicação "%s": %s</div>`, template.HTMLEscapeString(name), template.HTMLEscapeString(err.Error())))
+							// If update failed, we won't create a new one; move to next document
+							updatedApp = true
+							break
+						}
+						results = append(results, fmt.Sprintf(`<div class="alert alert-success">Aplicação "%s" atualizada em "%s" (ID: %s)</div>`, template.HTMLEscapeString(name), template.HTMLEscapeString(projectName), template.HTMLEscapeString(a.ID)))
+						updatedApp = true
+						break
+					}
+				}
+			}
+			if updatedApp {
+				// Already updated existing application; skip creation
+				continue
+			}
 
 			// Create new application
 			a := applicationModel.Application{ProjectID: proj.ID, Name: name, Description: desc, Namespace: ns}
@@ -445,30 +445,50 @@ func (h *Handler) ImportYAML(sc *core.HTTPServerContext) error {
 				continue
 			}
 
-            // Check if metric type already exists for application
-            existingMetrics, err := serverModel.ServerRepos.ApplicationMetric.ListByApplication(ctx, app.ID)
-            updatedMetric := false
-            if err == nil {
-                for _, em := range existingMetrics {
-                    if em.TypeID == mt.ID {
-                        // Update existing metric
-                        em.Configuration = json.RawMessage(cfgJSON)
-                        if err := serverModel.ServerRepos.ApplicationMetric.Update(ctx, &em); err != nil {
-                            results = append(results, fmt.Sprintf(`<div class="alert alert-error">Erro ao atualizar métrica "%s": %s</div>`, template.HTMLEscapeString(mt.Name), template.HTMLEscapeString(err.Error())))
-                            // Consider it handled; skip creating new to avoid duplication
-                            updatedMetric = true
-                            break
-                        }
-                        results = append(results, fmt.Sprintf(`<div class="alert alert-success">Métrica "%s" atualizada para aplicação "%s" (ID: %s)</div>`, template.HTMLEscapeString(mt.Name), template.HTMLEscapeString(app.Name), template.HTMLEscapeString(em.ID)))
-                        updatedMetric = true
-                        break
-                    }
-                }
-            }
-            if updatedMetric {
-                // Already updated existing metric; skip creation
-                continue
-            }
+			// Check if metric type already exists for application
+			existingMetrics, err := serverModel.ServerRepos.ApplicationMetric.ListByApplication(ctx, app.ID)
+			updatedMetric := false
+			if err == nil {
+				for _, em := range existingMetrics {
+					if em.TypeID == mt.ID {
+						if mt.Name == "PvcUsage" {
+							// Allow multiple PvcUsage per application; only update if PVC name matches
+							var existingCfg applicationMetricModel.Configuration
+							// Redact before parsing to be safe with other types
+							if err := json.Unmarshal(security.RedactSensitiveFieldsRaw(em.Configuration), &existingCfg); err == nil {
+								if existingCfg.PvcName != "" && cfg.PvcName != "" && strings.EqualFold(existingCfg.PvcName, cfg.PvcName) {
+									em.Configuration = json.RawMessage(cfgJSON)
+									if err := serverModel.ServerRepos.ApplicationMetric.Update(ctx, &em); err != nil {
+										results = append(results, fmt.Sprintf(`<div class="alert alert-error">Erro ao atualizar métrica "%s": %s</div>`, template.HTMLEscapeString(mt.Name), template.HTMLEscapeString(err.Error())))
+										updatedMetric = true
+										break
+									}
+									results = append(results, fmt.Sprintf(`<div class="alert alert-success">Métrica "%s" (PVC: %s) atualizada para aplicação "%s" (ID: %s)</div>`, template.HTMLEscapeString(mt.Name), template.HTMLEscapeString(cfg.PvcName), template.HTMLEscapeString(app.Name), template.HTMLEscapeString(em.ID)))
+									updatedMetric = true
+									break
+								}
+							}
+							// Different PVC name: do not update; allow creation of a new metric
+							continue
+						}
+
+						// Non-PvcUsage: single metric per type; update existing and skip creating new
+						em.Configuration = json.RawMessage(cfgJSON)
+						if err := serverModel.ServerRepos.ApplicationMetric.Update(ctx, &em); err != nil {
+							results = append(results, fmt.Sprintf(`<div class="alert alert-error">Erro ao atualizar métrica "%s": %s</div>`, template.HTMLEscapeString(mt.Name), template.HTMLEscapeString(err.Error())))
+							updatedMetric = true
+							break
+						}
+						results = append(results, fmt.Sprintf(`<div class="alert alert-success">Métrica "%s" atualizada para aplicação "%s" (ID: %s)</div>`, template.HTMLEscapeString(mt.Name), template.HTMLEscapeString(app.Name), template.HTMLEscapeString(em.ID)))
+						updatedMetric = true
+						break
+					}
+				}
+			}
+			if updatedMetric {
+				// Already updated existing metric; skip creation
+				continue
+			}
 
 			// Create new metric
 			am := applicationMetricModel.ApplicationMetric{
@@ -648,10 +668,10 @@ func (h *Handler) GetProjectsOptions(sc *core.HTTPServerContext) error {
 	sc.Response().Header().Set("Content-Type", "text/html")
 	sc.Response().WriteHeader(http.StatusOK)
 
-    // Write default option
-    sc.Response().Writer.Write([]byte(`<option value="">Selecione um projeto</option>`))
-    // Write "Todos" option (not default)
-    sc.Response().Writer.Write([]byte(`<option value="all">Todos</option>`))
+	// Write default option
+	sc.Response().Writer.Write([]byte(`<option value="">Selecione um projeto</option>`))
+	// Write "Todos" option (not default)
+	sc.Response().Writer.Write([]byte(`<option value="all">Todos</option>`))
 
 	// Write project options
 	for _, project := range projects {
@@ -697,10 +717,10 @@ func (h *Handler) GetApplicationsOptions(sc *core.HTTPServerContext) error {
 	sc.Response().Header().Set("Content-Type", "text/html")
 	sc.Response().WriteHeader(http.StatusOK)
 
-    // Write default option
-    sc.Response().Writer.Write([]byte(`<option value="">Selecione uma aplicação</option>`))
-    // Write "Todos" option (not default)
-    sc.Response().Writer.Write([]byte(`<option value="all">Todos</option>`))
+	// Write default option
+	sc.Response().Writer.Write([]byte(`<option value="">Selecione uma aplicação</option>`))
+	// Write "Todos" option (not default)
+	sc.Response().Writer.Write([]byte(`<option value="all">Todos</option>`))
 
 	// Write application options with project name
 	for _, app := range applications {
@@ -737,10 +757,10 @@ func (h *Handler) GetMetricTypesOptions(sc *core.HTTPServerContext) error {
 	sc.Response().Header().Set("Content-Type", "text/html")
 	sc.Response().WriteHeader(http.StatusOK)
 
-    // Write default option
-    sc.Response().Writer.Write([]byte(`<option value="">Selecione um tipo de métrica</option>`))
-    // Write "Todos" option (not default)
-    sc.Response().Writer.Write([]byte(`<option value="all">Todos</option>`))
+	// Write default option
+	sc.Response().Writer.Write([]byte(`<option value="">Selecione um tipo de métrica</option>`))
+	// Write "Todos" option (not default)
+	sc.Response().Writer.Write([]byte(`<option value="all">Todos</option>`))
 
 	// Write metric type options
 	for _, metricType := range metricTypes {
@@ -1449,11 +1469,12 @@ func (h *Handler) GetProjects(sc *core.HTTPServerContext) error {
 }
 
 type ApplicationMetricsView struct {
-    ApplicationID          string
-    ApplicationName        string
-    ApplicationDescription string
-    ApplicationNamespace   string
-    MetricsByType          map[string]*MetricWithValue
+	ApplicationID          string
+	ApplicationName        string
+	ApplicationDescription string
+	ApplicationNamespace   string
+	MetricsByType          map[string]*MetricWithValue
+	MultiMetricsByType     map[string][]*MetricWithValue
 }
 
 type MetricWithValue struct {
@@ -1494,8 +1515,9 @@ func (h *Handler) GetApplicationMetrics(sc *core.HTTPServerContext) error {
 		return sc.String(http.StatusInternalServerError, "Error loading metrics")
 	}
 
-	// Build metrics map organized by type
+	// Build metrics maps organized by type
 	metricsByType := make(map[string]*MetricWithValue)
+	multiMetricsByType := make(map[string][]*MetricWithValue)
 
 	for _, metric := range applicationMetrics {
 		// Get metric type details
@@ -1533,7 +1555,13 @@ func (h *Handler) GetApplicationMetrics(sc *core.HTTPServerContext) error {
 			}
 		}
 
-		metricsByType[metricType.Name] = metricWithValue
+		// Append to multi map
+		multiMetricsByType[metricType.Name] = append(multiMetricsByType[metricType.Name], metricWithValue)
+
+		// For single-display map, avoid overriding if already present; and skip PvcUsage to force multi display
+		if _, exists := metricsByType[metricType.Name]; !exists && metricType.Name != "PvcUsage" {
+			metricsByType[metricType.Name] = metricWithValue
+		}
 	}
 
 	data := ApplicationMetricsView{
@@ -1542,6 +1570,7 @@ func (h *Handler) GetApplicationMetrics(sc *core.HTTPServerContext) error {
 		ApplicationDescription: application.Description,
 		ApplicationNamespace:   application.Namespace,
 		MetricsByType:          metricsByType,
+		MultiMetricsByType:     multiMetricsByType,
 	}
 
 	log.Info().
@@ -1549,7 +1578,7 @@ func (h *Handler) GetApplicationMetrics(sc *core.HTTPServerContext) error {
 		Int("metrics_count", len(metricsByType)).
 		Msg("Rendering application metrics")
 
-	// Debug: log metric types
+		// Debug: log metric types
 	for metricTypeName, metric := range metricsByType {
 		hasValue := metric.LatestValue != nil
 		log.Info().
@@ -1575,131 +1604,139 @@ func (h *Handler) GetApplicationMetrics(sc *core.HTTPServerContext) error {
 
 // GetDashboardResults renders dashboard results when any filter is applied
 func (h *Handler) GetDashboardResults(sc *core.HTTPServerContext) error {
-    ctx := sc.Request().Context()
+	ctx := sc.Request().Context()
 
-    rawProjectID := sc.QueryParam("project_id")
-    rawApplicationID := sc.QueryParam("application_id")
-    rawMetricTypeID := sc.QueryParam("metric_type_id")
+	rawProjectID := sc.QueryParam("project_id")
+	rawApplicationID := sc.QueryParam("application_id")
+	rawMetricTypeID := sc.QueryParam("metric_type_id")
 
-    // Detect if user interacted with any filter (including selecting "Todos")
-    hasAnySelection := rawProjectID != "" || rawApplicationID != "" || rawMetricTypeID != ""
+	// Detect if user interacted with any filter (including selecting "Todos")
+	hasAnySelection := rawProjectID != "" || rawApplicationID != "" || rawMetricTypeID != ""
 
-    // Normalize 'Todos' selection to empty filter
-    projectID := rawProjectID
-    applicationID := rawApplicationID
-    metricTypeID := rawMetricTypeID
-    if projectID == "all" {
-        projectID = ""
-    }
-    if applicationID == "all" {
-        applicationID = ""
-    }
-    if metricTypeID == "all" {
-        metricTypeID = ""
-    }
+	// Normalize 'Todos' selection to empty filter
+	projectID := rawProjectID
+	applicationID := rawApplicationID
+	metricTypeID := rawMetricTypeID
+	if projectID == "all" {
+		projectID = ""
+	}
+	if applicationID == "all" {
+		applicationID = ""
+	}
+	if metricTypeID == "all" {
+		metricTypeID = ""
+	}
 
-    sc.Response().Header().Set("Content-Type", "text/html")
-    sc.Response().WriteHeader(http.StatusOK)
+	sc.Response().Header().Set("Content-Type", "text/html")
+	sc.Response().WriteHeader(http.StatusOK)
 
-    // If no filters selected at all, show helper message and return
-    if !hasAnySelection {
-        sc.Response().Writer.Write([]byte(`<div class="info-box">Selecione um projeto, uma aplicação ou um tipo de métrica para carregar o dashboard.</div>`))
-        return nil
-    }
+	// If no filters selected at all, show helper message and return
+	if !hasAnySelection {
+		sc.Response().Writer.Write([]byte(`<div class="info-box">Selecione um projeto, uma aplicação ou um tipo de métrica para carregar o dashboard.</div>`))
+		return nil
+	}
 
-    // Determine which applications to render
-    var applications []applicationModel.Application
+	// Determine which applications to render
+	var applications []applicationModel.Application
 
-    if applicationID != "" {
-        app, err := serverModel.ServerRepos.Application.Get(ctx, applicationID)
-        if err != nil {
-            return sc.String(http.StatusBadRequest, "Aplicação selecionada inválida")
-        }
-        if projectID != "" && app.ProjectID != projectID {
-            return sc.String(http.StatusBadRequest, "Aplicação não pertence ao projeto selecionado")
-        }
-        applications = []applicationModel.Application{app}
-    } else if projectID != "" {
-        var err error
-        applications, err = serverModel.ServerRepos.Application.ListByProject(ctx, projectID)
-        if err != nil {
-            return sc.String(http.StatusInternalServerError, "Erro ao carregar aplicações do projeto")
-        }
-    } else {
-        // Only metric type selected: render across all applications
-        var err error
-        applications, err = serverModel.ServerRepos.Application.List(ctx)
-        if err != nil {
-            return sc.String(http.StatusInternalServerError, "Erro ao carregar aplicações")
-        }
-    }
+	if applicationID != "" {
+		app, err := serverModel.ServerRepos.Application.Get(ctx, applicationID)
+		if err != nil {
+			return sc.String(http.StatusBadRequest, "Aplicação selecionada inválida")
+		}
+		if projectID != "" && app.ProjectID != projectID {
+			return sc.String(http.StatusBadRequest, "Aplicação não pertence ao projeto selecionado")
+		}
+		applications = []applicationModel.Application{app}
+	} else if projectID != "" {
+		var err error
+		applications, err = serverModel.ServerRepos.Application.ListByProject(ctx, projectID)
+		if err != nil {
+			return sc.String(http.StatusInternalServerError, "Erro ao carregar aplicações do projeto")
+		}
+	} else {
+		// Only metric type selected: render across all applications
+		var err error
+		applications, err = serverModel.ServerRepos.Application.List(ctx)
+		if err != nil {
+			return sc.String(http.StatusInternalServerError, "Erro ao carregar aplicações")
+		}
+	}
 
-    // For each application, collect metrics (optionally filtered by metric type) and render
-    for _, application := range applications {
-        applicationMetrics, err := serverModel.ServerRepos.ApplicationMetric.ListByApplication(ctx, application.ID)
-        if err != nil {
-            continue
-        }
+	// For each application, collect metrics (optionally filtered by metric type) and render
+	for _, application := range applications {
+		applicationMetrics, err := serverModel.ServerRepos.ApplicationMetric.ListByApplication(ctx, application.ID)
+		if err != nil {
+			continue
+		}
 
-        metricsByType := make(map[string]*MetricWithValue)
+		metricsByType := make(map[string]*MetricWithValue)
+		multiMetricsByType := make(map[string][]*MetricWithValue)
 
-        for _, metric := range applicationMetrics {
-            if metricTypeID != "" && metric.TypeID != metricTypeID {
-                continue
-            }
+		for _, metric := range applicationMetrics {
+			if metricTypeID != "" && metric.TypeID != metricTypeID {
+				continue
+			}
 
-            metricType, err := serverModel.ServerRepos.MetricType.Get(ctx, metric.TypeID)
-            if err != nil {
-                continue
-            }
+			metricType, err := serverModel.ServerRepos.MetricType.Get(ctx, metric.TypeID)
+			if err != nil {
+				continue
+			}
 
-            mv := &MetricWithValue{
-                MetricID:     metric.ID,
-                MetricTypeID: metric.TypeID,
-            }
+			mv := &MetricWithValue{
+				MetricID:     metric.ID,
+				MetricTypeID: metric.TypeID,
+			}
 
-            var config map[string]interface{}
-            redacted := security.RedactSensitiveFieldsRaw(metric.Configuration)
-            if err = json.Unmarshal(redacted, &config); err == nil {
-                mv.Configuration = config
-            }
+			var config map[string]interface{}
+			redacted := security.RedactSensitiveFieldsRaw(metric.Configuration)
+			if err = json.Unmarshal(redacted, &config); err == nil {
+				mv.Configuration = config
+			}
 
-            values, err := serverModel.ServerRepos.ApplicationMetricValue.ListByApplicationMetric(ctx, metric.ID, 1)
-            if err == nil && len(values) > 0 {
-                var valueMap map[string]interface{}
-                if err := json.Unmarshal(values[0].Value, &valueMap); err == nil {
-                    mv.LatestValue = &MetricValueParsed{
-                        ID:                  values[0].ID,
-                        ApplicationMetricID: values[0].ApplicationMetricID,
-                        Value:               valueMap,
-                        CreatedAt:           values[0].CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
-                        UpdatedAt:           values[0].UpdatedAt.Format("2006-01-02T15:04:05Z07:00"),
-                    }
-                }
-            }
+			values, err := serverModel.ServerRepos.ApplicationMetricValue.ListByApplicationMetric(ctx, metric.ID, 1)
+			if err == nil && len(values) > 0 {
+				var valueMap map[string]interface{}
+				if err := json.Unmarshal(values[0].Value, &valueMap); err == nil {
+					mv.LatestValue = &MetricValueParsed{
+						ID:                  values[0].ID,
+						ApplicationMetricID: values[0].ApplicationMetricID,
+						Value:               valueMap,
+						CreatedAt:           values[0].CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
+						UpdatedAt:           values[0].UpdatedAt.Format("2006-01-02T15:04:05Z07:00"),
+					}
+				}
+			}
 
-            metricsByType[metricType.Name] = mv
-        }
+			// Append to multi map
+			multiMetricsByType[metricType.Name] = append(multiMetricsByType[metricType.Name], mv)
 
-        // If filtering by metric type and no metric matched for this app, skip rendering this app
-        if metricTypeID != "" && len(metricsByType) == 0 {
-            continue
-        }
+			// Populate single map for non-PvcUsage and only once
+			if _, exists := metricsByType[metricType.Name]; !exists && metricType.Name != "PvcUsage" {
+				metricsByType[metricType.Name] = mv
+			}
+		}
 
-        data := ApplicationMetricsView{
-            ApplicationID:          application.ID,
-            ApplicationName:        application.Name,
-            ApplicationDescription: application.Description,
-            ApplicationNamespace:   application.Namespace,
-            MetricsByType:          metricsByType,
-        }
+		// If filtering by metric type and no metric matched for this app, skip rendering this app
+		if metricTypeID != "" && len(metricsByType) == 0 {
+			continue
+		}
 
-        if err := h.templates.ExecuteTemplate(sc.Response().Writer, "application-metrics", data); err != nil {
-            return err
-        }
-    }
+		data := ApplicationMetricsView{
+			ApplicationID:          application.ID,
+			ApplicationName:        application.Name,
+			ApplicationDescription: application.Description,
+			ApplicationNamespace:   application.Namespace,
+			MetricsByType:          metricsByType,
+			MultiMetricsByType:     multiMetricsByType,
+		}
 
-    return nil
+		if err := h.templates.ExecuteTemplate(sc.Response().Writer, "application-metrics", data); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 // Helper function to get metric value by type

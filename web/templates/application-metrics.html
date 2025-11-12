@@ -292,30 +292,34 @@
         {{ end }}
 
         <!-- Disk (PVC) -->
-        {{ $pvcMetric := index .MetricsByType "PvcUsage" }}
-        {{ if and $pvcMetric $pvcMetric.LatestValue }}
-        <div class="metric-card resource-card">
-            <div class="metric-card-label">
-                <span class="metric-icon">💿</span>
-                <span>Disk</span>
-            </div>
-            <div class="metric-card-content">
-                {{ $used := index $pvcMetric.LatestValue.Value "pvc_used_bytes" }}
-                {{ $capacity := index $pvcMetric.LatestValue.Value "pvc_capacity_bytes" }}
-                {{ $percent := index $pvcMetric.LatestValue.Value "pvc_percent" }}
-                {{ $usedGB := div $used 1073741824.0 }}
-                {{ $capacityGB := div $capacity 1073741824.0 }}
-
-                <div class="resource-bar-container" title="Disk: {{ printf " %.1f" $usedGB }}GB / {{ printf "%.1f"
-                    $capacityGB }}GB">
-                    <div class="resource-bar">
-                        <div class="resource-bar-fill" style="width: {{ printf " %.0f" (add $percent 0) }}%"></div>
-                    </div>
-                    <div class="resource-value">{{ printf "%.0f" (add $percent 0) }}%</div>
+        {{ $pvcMetrics := index .MultiMetricsByType "PvcUsage" }}
+        {{ if $pvcMetrics }}
+            {{ range $idx, $m := $pvcMetrics }}
+            {{ if and $m $m.LatestValue }}
+            <div class="metric-card resource-card">
+                <div class="metric-card-label">
+                    <span class="metric-icon">💿</span>
+                    {{ $pvcName := index $m.Configuration "pvc_name" }}
+                    <span>Disk — {{ if $pvcName }}{{ $pvcName }}{{ else }}PVC{{ end }}</span>
                 </div>
-                <div class="metric-detail">{{ printf "%.1f" $usedGB }} / {{ printf "%.1f" $capacityGB }} GB</div>
+                <div class="metric-card-content">
+                    {{ $used := index $m.LatestValue.Value "pvc_used_bytes" }}
+                    {{ $capacity := index $m.LatestValue.Value "pvc_capacity_bytes" }}
+                    {{ $percent := index $m.LatestValue.Value "pvc_percent" }}
+                    {{ $usedGB := div $used 1073741824.0 }}
+                    {{ $capacityGB := div $capacity 1073741824.0 }}
+
+                    <div class="resource-bar-container" title="Disk: {{ printf " %.1f" $usedGB }}GB / {{ printf "%.1f" $capacityGB }}GB">
+                        <div class="resource-bar">
+                            <div class="resource-bar-fill" style="width: {{ printf " %.0f" (add $percent 0) }}%"></div>
+                        </div>
+                        <div class="resource-value">{{ printf "%.0f" (add $percent 0) }}%</div>
+                    </div>
+                    <div class="metric-detail">{{ printf "%.1f" $usedGB }} / {{ printf "%.1f" $capacityGB }} GB</div>
+                </div>
             </div>
-        </div>
+            {{ end }}
+            {{ end }}
         {{ end }}
 
         <!-- Kafka Lag -->

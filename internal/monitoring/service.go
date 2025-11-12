@@ -208,34 +208,48 @@ func (m *MonitoringService) collectMetricByType(
 	// Send Slack alert on failure conditions with daily deduplication per metric
 	if env.SLACK_ALERTS_ENABLED && env.SLACK_WEBHOOK_URL != "" {
 		if alert, reason := shouldAlert(metricType.Name, metricValue); alert {
-			alreadySent, checkErr := m.hasSentAlertRecently(ctx, appMetric.ID)
-			if checkErr != nil {
-				log.Warn().Err(checkErr).Msg("failed to check daily alert dedup")
+			// Only for HealthCheck: require at least 3 consecutive failures (to reduce false positives)
+			shouldSendAlert := true
+			if metricType.Name == "HealthCheck" {
+				if !m.isHealthCheckPersistentFailure(ctx, appMetric.ID, metricValue, 3) {
+					shouldSendAlert = false
+					log.Debug().
+						Str("application", application.Name).
+						Str("metric_type", metricType.Name).
+						Msg("skipping Slack alert (HealthCheck threshold not met: < 3 consecutive failures)")
+				}
 			}
-			if !alreadySent {
-				// Try to get project name for richer context
-				projectName := "N/A"
-				if project, pErr := serverModel.ServerRepos.Project.Get(ctx, application.ProjectID); pErr == nil {
-					projectName = project.Name
+
+			if shouldSendAlert {
+				alreadySent, checkErr := m.hasSentAlertRecently(ctx, appMetric.ID)
+				if checkErr != nil {
+					log.Warn().Err(checkErr).Msg("failed to check daily alert dedup")
 				}
-				// Use Slack attachment with red vertical bar (danger color)
-				fields := map[string]string{
-					"Project":     projectName,
-					"Application": application.Name,
-					"Namespace":   application.Namespace,
-					"Metric":      metricType.Name,
-					"Reason":      reason,
-				}
-				// Best-effort: log warnings but don't block collection
-				if err := alerts.SendSlackAlert(ctx, env.SLACK_WEBHOOK_URL, "Metric failure detected", fields, ""); err != nil {
-					log.Warn().Err(err).Msg("failed to post Slack alert")
-				} else {
-					if markErr := m.markAlertSentNow(ctx, appMetric.ID, fmt.Sprintf("failure:%s", metricType.Name)); markErr != nil {
-						log.Warn().Err(markErr).Msg("failed to mark daily alert sent")
+				if !alreadySent {
+					// Try to get project name for richer context
+					projectName := "N/A"
+					if project, pErr := serverModel.ServerRepos.Project.Get(ctx, application.ProjectID); pErr == nil {
+						projectName = project.Name
 					}
+					// Use Slack attachment with red vertical bar (danger color)
+					fields := map[string]string{
+						"Project":     projectName,
+						"Application": application.Name,
+						"Namespace":   application.Namespace,
+						"Metric":      metricType.Name,
+						"Reason":      reason,
+					}
+					// Best-effort: log warnings but don't block collection
+					if err := alerts.SendSlackAlert(ctx, env.SLACK_WEBHOOK_URL, "Metric failure detected", fields, ""); err != nil {
+						log.Warn().Err(err).Msg("failed to post Slack alert")
+					} else {
+						if markErr := m.markAlertSentNow(ctx, appMetric.ID, fmt.Sprintf("failure:%s", metricType.Name)); markErr != nil {
+							log.Warn().Err(markErr).Msg("failed to mark daily alert sent")
+						}
+					}
+				} else {
+					log.Debug().Str("application", application.Name).Str("metric_type", metricType.Name).Msg("skipping Slack alert (metric failure already notified today)")
 				}
-			} else {
-				log.Debug().Str("application", application.Name).Str("metric_type", metricType.Name).Msg("skipping Slack alert (metric failure already notified today)")
 			}
 		}
 	}
@@ -726,6 +740,53 @@ func (m *MonitoringService) markAlertSentNow(ctx context.Context, applicationMet
     `
 	_, err := m.db.ExecContext(ctx, query, applicationMetricID, alertDate, reason)
 	return err
+}
+
+// isHealthCheckPersistentFailure checks whether there are at least `threshold`
+// consecutive HealthCheck failures, including the current one. This helps reduce
+// false positives caused by transient network issues or timeouts.
+func (m *MonitoringService) isHealthCheckPersistentFailure(
+	ctx context.Context,
+	applicationMetricID string,
+	current applicationMetricValueModel.MetricValue,
+	threshold int,
+) bool {
+	// Current must be a failure
+	if !(current.Status == "down" || current.StatusCode >= 400) {
+		return false
+	}
+
+	if threshold <= 1 {
+		return true
+	}
+
+	prevCount := threshold - 1
+	prevValues, err := serverModel.ServerRepos.ApplicationMetricValue.ListByApplicationMetric(ctx, applicationMetricID, prevCount)
+	if err != nil {
+		log.Warn().Err(err).Msg("error fetching previous HealthCheck values")
+		return false
+	}
+	if len(prevValues) < prevCount {
+		// Not enough history to confirm persistence
+		return false
+	}
+
+	consecutiveFails := 1 // count current failure
+	for _, v := range prevValues {
+		var mv applicationMetricValueModel.MetricValue
+		if err := json.Unmarshal(v.Value, &mv); err != nil {
+			log.Warn().Err(err).Msg("error parsing previous HealthCheck value")
+			return false
+		}
+
+		if mv.Status == "down" || mv.StatusCode >= 400 {
+			consecutiveFails++
+		} else {
+			break
+		}
+	}
+
+	return consecutiveFails >= threshold
 }
 
 // shouldAlert determines if a metric value represents a failure that warrants alerting
